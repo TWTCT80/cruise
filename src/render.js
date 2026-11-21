@@ -309,6 +309,11 @@ export function createRenderer(app) {
     stepSpring2(sm.hem, hip.x - 10, hip.y + 9, hemFx, hemFy, dt, 150, 10);
     // pompom on a springy beanie tip
     stepSpring2(sm.pom, head.x - 5, head.y - 21, wind * 0.55 + inertia * 0.5 + gx * 0.1, gy * 0.12, dt, 90, 6);
+    { // keep the pompom on a short tether so it never stretches into an antenna
+      const ax = head.x - 4, ay = head.y - 16, max = 7;
+      const dx = sm.pom.x - ax, dy = sm.pom.y - ay, d = Math.hypot(dx, dy);
+      if (d > max) { sm.pom.x = ax + dx / d * max; sm.pom.y = ay + dy / d * max; sm.pom.vx *= 0.5; sm.pom.vy *= 0.5; }
+    }
 
     // drawstrings
     for (let i = 0; i < 2; i++) {
@@ -323,6 +328,8 @@ export function createRenderer(app) {
     arm(g, shoulder, 0.35 + swing - brake * 0.6, 0.1 + swing * 0.5, PAL.hoodieDark);
     // back leg
     leg(g, hip, back, PAL.pantsDark);
+    // front leg — drawn before the torso so the hoodie hangs over the thighs
+    leg(g, hip, front, PAL.pants);
     // torso: hoodie with a free-moving back hem
     const hem = sm.hem;
     g.moveTo(hem.x, hem.y)
@@ -336,8 +343,6 @@ export function createRenderer(app) {
       .stroke({ width: 2.2, color: PAL.hoodieLight, cap: 'round', alpha: 0.9 });
     // hood
     g.ellipse(sm.hood.x + 1, sm.hood.y - 1, 8, 6).fill({ color: PAL.hoodieDark });
-    // front leg
-    leg(g, hip, front, PAL.pants);
     // drawstrings
     for (const r of sm.strings) {
       const pts = r.pts;

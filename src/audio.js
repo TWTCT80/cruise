@@ -44,7 +44,7 @@ export function unlockAudio() {
   // master bus: gain → soft lowpass → gentle compressor
   master = ctx.createGain();
   master.gain.value = config.masterVolume;
-  const tame = filter('lowpass', 3800, 0.5);
+  const tame = filter('lowpass', 2200, 0.5);   // "wrapped in cotton"
   const comp = ctx.createDynamicsCompressor();
   comp.threshold.value = -20; comp.knee.value = 18; comp.ratio.value = 3;
   comp.attack.value = 0.01; comp.release.value = 0.2;
@@ -64,7 +64,7 @@ export function unlockAudio() {
 
   // foot brake: low, sandy grit
   brakeGain = ctx.createGain(); brakeGain.gain.value = 0;
-  loopSource(noiseBuf).connect(filter('bandpass', 850, 0.5)).connect(filter('lowpass', 1400, 0.5))
+  loopSource(noiseBuf).connect(filter('bandpass', 520, 0.5)).connect(filter('lowpass', 800, 0.5))
     .connect(brakeGain).connect(master);
 }
 
@@ -74,10 +74,10 @@ export function updateAudio(p) {
   const s = Math.min(1, p.speed / 900);
   const vol = config.rollVolume;
   master.gain.setTargetAtTime(config.masterVolume, t, 0.05);
-  rollGain.gain.setTargetAtTime(vol * (s > 0.005 ? 0.06 + 0.34 * s : 0), t, 0.08);
-  rollFilter.frequency.setTargetAtTime(220 + 420 * s, t, 0.1);
-  rumbleGain.gain.setTargetAtTime(vol * 0.8 * s, t, 0.1);
-  brakeGain.gain.setTargetAtTime(0.16 * p.brakeAmount * Math.min(1, p.speed / 300), t, 0.06);
+  rollGain.gain.setTargetAtTime(vol * (s > 0.005 ? 0.035 + 0.17 * s : 0), t, 0.12);
+  rollFilter.frequency.setTargetAtTime(170 + 230 * s, t, 0.15);
+  rumbleGain.gain.setTargetAtTime(vol * 0.5 * s, t, 0.15);
+  brakeGain.gain.setTargetAtTime(0.06 * p.brakeAmount * Math.min(1, p.speed / 300), t, 0.1);
 }
 
 function burst({ freq, q = 0.7, dur = 0.08, gain = 0.2, type = 'lowpass', attack = 0.006 }) {
@@ -110,9 +110,9 @@ function thump(freq, dur, gain) {
 export function seamClack(speed, front = true) {
   if (!ctx || speed < 30) return;
   const s = Math.min(1, speed / 900);
-  const g = (0.05 + 0.11 * s) * (front ? 1 : 0.8);
+  const g = (0.04 + 0.08 * s) * (front ? 1 : 0.8);
   thump(front ? 72 : 66, 0.11, g * 1.2);
-  burst({ freq: 700 + 300 * s, dur: 0.05, gain: g * 0.45 });
+  burst({ freq: 450 + 200 * s, dur: 0.05, gain: g * 0.35 });
 }
 
 export function kickScuff() {
