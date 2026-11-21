@@ -36,6 +36,10 @@ Beslutat i grill-session 2026-11-21. Ändra här när ett beslut ändras.
    **håll**, **släpp = catch** när brädan roterat klart → Sloppy/Clean/Perfect.
 
 Luft: ~0,9 s, mjukt **häng** vid toppen (lägre gravitation nära vändpunkten, `hangGravity`).
+**Kroppen hoppar, brädan följer** (rättat efter Toms referensfoton 2026-11-22): huk innan pop är bara en
+lätt knäböj; i luften stannar höften högt och knäna dras UPP mot bröstet (inte höften ner mot brädan);
+bakfoten på tailen, framfoten glider mot nosen, fötterna lättar från brädan vid toppen; brädan ~50° nos-upp
+vid popet. Keyframes i `OLLIE_KEYS` (render.js).
 Ingen konstant slow motion – den bryter rytmen och slits ut. `airSlowmo` finns som reglage (0 = av);
 slow motion sparas som belöning för sällsynta ögonblick. Animation följer ollie-infografikens 6 faser:
 huk → tail slår (nosen upp, brädan vrids kring tailen) → framfoten drar upp → benen in vid toppen →

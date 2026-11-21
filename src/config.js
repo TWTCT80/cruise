@@ -15,7 +15,7 @@ export const DEFAULTS = {
 
   // --- ollie ---
   popDistance: 26,         // px the finger must travel upward to pop
-  popVel: 380,             // base take-off speed (world units/s)
+  popVel: 340,             // base take-off speed (world units/s)
   airGravity: 900,         // gravity in the air (lower than real = floatier)
   hangGravity: 0.45,       // gravity multiplier near the apex …
   hangWindow: 110,         // … while |vertical speed| is below this

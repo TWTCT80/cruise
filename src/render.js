@@ -210,6 +210,30 @@ export function createRenderer(app) {
   }
 
   // --- rider -------------------------------------------------------------
+  // Ollie keyframes over normalised airtime u (0 = pop, 1 = landing).
+  // crouch: hip drop vs standing (negative = legs stretched) · arms 0..1 ·
+  // fx/bx: front/back foot along the deck · gf/gb: foot lift off the deck ·
+  // hipX: hip shift forward · lean: torso lean.
+  const OLLIE_KEYS = [
+    [0.00, { crouch: -6, arms: 0.30, fx: 15, bx: -20, gf: 0, gb: 0, hipX: -2, lean: 0.04 }], // 2. pop: legs extend, back foot on tail
+    [0.12, { crouch: -9, arms: 0.40, fx: 18, bx: -23, gf: 0, gb: 0, hipX: 0, lean: 0.02 }],
+    [0.30, { crouch: 6, arms: 0.75, fx: 26, bx: -22, gf: 2, gb: 3, hipX: 3, lean: 0 }],     // 3. front foot drags to the nose
+    [0.50, { crouch: 15, arms: 0.92, fx: 21, bx: -20, gf: 6, gb: 7, hipX: 3, lean: 0 }],    // 4. apex: knees up, feet float
+    [0.68, { crouch: 13, arms: 0.88, fx: 18, bx: -19, gf: 4, gb: 4, hipX: 2, lean: 0 }],
+    [0.88, { crouch: 1, arms: 0.6, fx: 16, bx: -18, gf: 0, gb: 0, hipX: 0, lean: 0.02 }],    // 5. legs reach down
+    [1.00, { crouch: 3, arms: 0.45, fx: 15, bx: -17, gf: 0, gb: 0, hipX: 0, lean: 0.03 }],
+  ];
+  function ollieKeys(u) {
+    let i = 0;
+    while (i < OLLIE_KEYS.length - 2 && u > OLLIE_KEYS[i + 1][0]) i++;
+    const [u0, a] = OLLIE_KEYS[i], [u1, b] = OLLIE_KEYS[i + 1];
+    let k = Math.max(0, Math.min(1, (u - u0) / (u1 - u0)));
+    k = k * k * (3 - 2 * k);
+    const out = {};
+    for (const key of Object.keys(a)) out[key] = a[key] + (b[key] - a[key]) * k;
+    return out;
+  }
+
   const DECK_Y = -15;
   const PIVOT_Y = -9;          // board pitches around this point (deck centre)
 
@@ -219,8 +243,8 @@ export function createRenderer(app) {
   function pitchTarget(p) {
     if (!p.airborne) return 0;
     const u = Math.min(1, p.airT / p.airDur);
-    if (u < 0.1) return -0.55 * (u / 0.1);
-    if (u < 0.38) return -0.55 * (1 - (u - 0.1) / 0.28);
+    if (u < 0.08) return -0.85 * (u / 0.08);                       // tail snaps: nose ~50° up
+    if (u < 0.42) { const k = (u - 0.08) / 0.34; return -0.85 * (1 - k * k * (3 - 2 * k)); } // front foot levels it
     if (u < 0.78) return 0;
     if (u < 0.92) return 0.07;
     return 0;
@@ -302,36 +326,40 @@ export function createRenderer(app) {
     crouchT += 24 * brake;
     leanT += 0.06 * brake;
 
-    // --- ollie poses (follows the six phases of a real ollie) ---
-    let armT = 0;                                   // 0 relaxed · 0.6 out · 1 up
-    crouchT += 20 * p.crouchAmt;                    // 1. wind up: crouch low
-    leanT += 0.06 * p.crouchAmt;
-    armT += 0.3 * p.crouchAmt;
+    // --- ollie (from reference photos): the BODY jumps and the board follows.
+    // Wind-up is only a slight knee bend. In the air the hip stays high; the
+    // knees come UP towards the chest instead of the hip sinking to the board.
+    let armT = 0;                                   // 0 relaxed · 0.6 out · 1 up/wide
+    crouchT += 9 * p.crouchAmt;                     // 1. slight bend, lean in
+    leanT += 0.1 * p.crouchAmt;
+    armT += 0.08 * p.crouchAmt;
+    let ok = null;
     if (p.airborne) {
-      const u = Math.min(1, p.airT / p.airDur);
-      if (u < 0.13) { crouchT = -5; armT = 1; }     // 2–3. snap: legs extend, arms fly up
-      else if (u < 0.68) { crouchT = 23; armT = 0.65; } // 4. tuck at the apex, arms out
-      else { crouchT = 9; armT = 0.5; }             // 5. legs reach for the ground
-      leanT += 0.05;
+      ok = ollieKeys(Math.min(1, p.airT / p.airDur));
+      crouchT = ok.crouch;
+      armT = ok.arms;
+      leanT += ok.lean;
     }
     const arms = stepSpring(sm.arms, armT, dt, 120, 13);
     // stay more upright than the board on slopes, like a real rider
     leanT -= (-p.boardAngle) * 0.6;
     const lean = stepSpring(sm.lean, leanT, dt, 140, 14);
-    const crouch = stepSpring(sm.crouch, crouchT, dt, 170, 16);
+    const crouch = p.airborne ? stepSpring(sm.crouch, crouchT, dt, 300, 24) : stepSpring(sm.crouch, crouchT, dt, 170, 16);
 
     // Seam bumps: board jolts, knees absorb with a softer lagging spring.
     const bump = stepSpring(sm.bump, 0, dt, 900, 28);
     const bodyBump = stepSpring(sm.bodyBump, bump, dt, 220, 15);
 
-    const hip = { x: 2 + lean * 10 - 6 * brake, y: DECK_Y - 54 + crouch + breathe * 0.4 + bodyBump };
+    const hip = { x: 2 + lean * 10 - 6 * brake + (ok ? ok.hipX : 0), y: DECK_Y - 54 + crouch + breathe * 0.4 + bodyBump };
 
     // feet sit on the deck, which pitches around its centre during an ollie
     const pc = Math.cos(sm.pitch.v), ps = Math.sin(sm.pitch.v);
     const liftOff = Math.max(0, -sm.pitch.v) * 38;   // nose-up: pivot on the tail, not the centre
     const onDeck = (x, y) => ({ x: x * pc - (y - PIVOT_Y) * ps, y: PIVOT_Y - liftOff + x * ps + (y - PIVOT_Y) * pc });
-    const front = onDeck(15, DECK_Y - 3 + bump);
-    let back = onDeck(-17, DECK_Y - 3 + bump);
+    // in the air each foot follows its own path along the deck (back foot on
+    // the tail, front foot sliding towards the nose) and may lift off it
+    const front = ok ? onDeck(ok.fx, DECK_Y - 3 - ok.gf) : onDeck(15, DECK_Y - 3 + bump);
+    let back = ok ? onDeck(ok.bx, DECK_Y - 3 - ok.gb) : onDeck(-17, DECK_Y - 3 + bump);
     if (push >= 0) {
       const ground = 2;
       if (push < 0.3) {
