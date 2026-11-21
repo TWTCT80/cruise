@@ -4,6 +4,7 @@
 
 import { config, DEFAULTS, RANGES, saveConfig, resetConfig, diffFromDefaults } from './config.js';
 import { OUTFIT_PRESETS, GARMENTS, garmentColor } from './outfit.js';
+import { VERSION } from './version.js';
 
 export function createDevPanel(getStats) {
   const el = document.getElementById('dev');
@@ -40,6 +41,12 @@ export function createDevPanel(getStats) {
         box.appendChild(b);
       }
       body.appendChild(head);
+    }
+    if (key === 'gravity') {
+      const h = document.createElement('div');
+      h.className = 'dev-section';
+      h.innerHTML = '<div class="dev-title">Känsla, kamera & ljud</div>';
+      body.appendChild(h);
     }
     const garment = GARMENTS.find((g) => key === g + 'Hue');
     if (garment) {
@@ -90,7 +97,7 @@ export function createDevPanel(getStats) {
     el.classList.toggle('open', open);
   }
 
-  setInterval(() => { if (open) stats.textContent = getStats(); }, 200);
+  setInterval(() => { if (open) stats.textContent = `v ${VERSION} · ${getStats()}`; }, 200);
 
   window.addEventListener('keydown', (e) => { if (e.key === 'd' || e.key === 'D') toggle(); });
 

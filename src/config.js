@@ -75,6 +75,9 @@ export function diffFromDefaults() {
 
 // Slider ranges for the dev panel: [min, max, step]
 export const RANGES = {
+  hoodieHue: [0, 360, 1], hoodieSat: [0, 1, 0.01], hoodieLight: [0.02, 0.9, 0.01],
+  pantsHue: [0, 360, 1], pantsSat: [0, 1, 0.01], pantsLight: [0.02, 0.9, 0.01],
+  beanieHue: [0, 360, 1], beanieSat: [0, 1, 0.01], beanieLight: [0.02, 0.9, 0.01],
   gravity: [400, 3000, 10],
   rollResist: [0, 80, 1],
   airDrag: [0, 0.001, 0.00001],
@@ -98,9 +101,6 @@ export const RANGES = {
   riderHaze: [0, 0.5, 0.01],
   grain: [0, 0.25, 0.005],
   fogAmount: [0, 2.5, 0.05],
-  hoodieHue: [0, 360, 1], hoodieSat: [0, 1, 0.01], hoodieLight: [0.02, 0.9, 0.01],
-  pantsHue: [0, 360, 1], pantsSat: [0, 1, 0.01], pantsLight: [0.02, 0.9, 0.01],
-  beanieHue: [0, 360, 1], beanieSat: [0, 1, 0.01], beanieLight: [0.02, 0.9, 0.01],
   masterVolume: [0, 1, 0.01],
   rollVolume: [0, 1, 0.01],
   musicVolume: [0, 1, 0.01],
