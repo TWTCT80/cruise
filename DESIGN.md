@@ -1,0 +1,99 @@
+# Cruise – design
+
+Soft feelgood-skatespel för mobil. Lätt att rulla, svårt att sätta trick.
+Beslutat i grill-session 2026-11-21. Ändra här när ett beslut ändras.
+
+## Grund
+
+| Beslut | Val |
+|---|---|
+| Perspektiv | 2D från sidan med parallax, landscape |
+| Plattform | iPhone. Webb/PWA först, sedan **Capacitor** → App Store (samma kod) |
+| Motor | PixiJS 8 (vendorad i `vendor/`) + egen fysik, ingen fysikmotor |
+| Roller | Claude kodar, Tom designar/testar/bestämmer känsla |
+| Ambition | Hobby, byggt för att kunna släppas |
+| Hosting under utveckling | GitHub Pages, testa via länk på telefonen |
+
+## Rulla
+
+- **Vänster halva:** tryck = push (spark), håll kvar efter sparken = fotbroms.
+  Tryck under pågående spark köas (rytmiskt pushande); hålls det köade trycket
+  kvar blir det broms i stället för en extra spark.
+- **Höger halva:** pop + trick (M2+).
+- Vänsterhänt läge byter zonerna (inställning, M5).
+- Farten avtar långsamt; nedförsbackar ger fart. Ingen bakåtrullning i M1.
+- Värld: oändlig gata av handgjorda bitar i slumpad ordning (M4) – stad → park → strand,
+  långsam dygnsrytm. M1 använder en matematisk böljande väg som platshållare.
+- Hinder v1: flatground, kickers, kantstenar, trappor/gaps. Grinds/slides = v2.
+
+## Trick – en gest per trick
+
+1. **Finger ner** (höger zon) = pop
+2. **Dra** med fingret kvar = flick (väljer trick)
+3. **Lyft** = catch – timingen ger kvaliteten
+
+Rent tryck = ollie.
+
+| Svep | Trick | Svårighet | Vinkeltolerans |
+|---|---|---|---|
+| tryck | Ollie | ★ | – |
+| ↓ | Pop shove-it | ★★ | ±35° |
+| ↑ | FS shove-it | ★★ | ±35° |
+| ← | Kickflip | ★★ | ±35° |
+| → | Heelflip | ★★ | ±35° |
+| ↙ | Varial kickflip | ★★★ | ±25° |
+| ↖ | Hardflip | ★★★★ | ±20° |
+| båge ↓→← (kvartscirkel) | 360 flip | ★★★★★ | rätt krökning |
+
+Slarvigt svep → fel trick → fall. Stances (nollie/fakie/switch) senare, multiplicerar svårighet.
+
+### Catch-fönster (± kring ögonblicket brädan roterat klart)
+
+| | ★–★★ | ★★★ | ★★★★–★★★★★ |
+|---|---|---|---|
+| Perfect | ±50 ms | ±40 ms | ±30 ms |
+| Clean | ±100 ms | ±80 ms | ±60 ms |
+| Sloppy | ±160 ms | ±130 ms | ±100 ms |
+| utanför | fall | fall | fall |
+
+Greptejpen blinkar när den vänder upp = visuell catch-ledtråd. Alla värden i `src/config.js`.
+
+## Feedback
+
+- **Popup:** tricknamn stort, kvalitet under, svårighet i stjärnor. Tonar bort ~1,5 s. Inga poäng.
+- **Första gången** ett trick landas: större "NEW!"-effekt + ackord.
+- **Perfect:** hitstop ~80 ms, ljust ackord, dammpuff, stark haptik, lätt kamera-zoom.
+- **Clean:** nöjt "klonk", lätt haptik. **Sloppy:** vingel, skrapigt ljud.
+- **Fall:** mjukt – snubblar, joggar ikapp brädan, igång efter ~1,5 s. Inget game over.
+- **Varför man föll:** diskret ikon (för tidigt / för sent / fel riktning) som tonar bort.
+
+## Progression
+
+- **Trickboken:** per trick – gest-illustration, försök, landade %, perfekta %.
+- Nivåer: **Learning** → **Landed** (första landning) → **Mastered** (10 perfekta, guldkant).
+- Allt tillgängligt från start. Mastered låser upp färger på kläder/bräda.
+- Diskreta tips i början, ingen tutorialbana.
+- Sparning: localStorage nu (lägg Cruise på hemskärmen – Safari rensar annars), Capacitor-lagring i appen.
+
+## Stil
+
+- Platt geometrisk vektorgrafik, mjuka gradienter, pastell, allt ritat i kod.
+- En ansiktslös figur (hoodie + mössa), kroppsspråket gör jobbet.
+- Ljud: procedurellt/fria CC0-ljud + lo-fi-loop i prototypen; egna inspelade skateljud inför release.
+
+## Verktyg
+
+- **Dev-panel:** trefingertryck (telefon) eller `D` (dator). Reglage för all fysik/känsla,
+  sparas i localStorage. "Kopiera ändringar" ger JSON att klistra in till Claude.
+- Dator-test: `A` / `←` = vänster tumme.
+
+## Milstolpar
+
+Varje steg testas på telefonen och godkänns innan nästa.
+
+1. **Rullkänsla** – push, momentum, lutning, kamera, hjulljud. *(klar för test 2026-11-21)*
+2. **Ollie** – pop, luft, catch, landning, fall, landningsfeedback
+3. **Alla 8 trick** – gestigenkänning, popup
+4. **Världen** – gatubitar, kantstenar, trappor, parallax, dygnsrytm
+5. **Trickboken** – statistik, mastery, tips, sparning, vänsterhänt läge
+6. **Polering + Capacitor** – haptik, iPhone-build, ikon
