@@ -97,6 +97,9 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
   Standard 0,5. Samma nyckellägen animeras av dygnsrytmen i M4.
 - **Gubben i luften:** lätt oskärpa på konturerna (`riderSoftness`) + lite dis i hans färger
   (`riderHaze`); skuggas mot skymningen och får varmt motljus i kanten vid mörkare stämning.
+- **Outfit (`src/outfit.js`):** färgton/mättnad/ljushet per plagg (tröja, byxor, mössa) i dev-panelen,
+  med förval (Original, Svart, Svart/röd, Sand). Snören och skor alltid benvita. Kantljuset tar
+  tröjans färg i dagsljus och blir varmt motljus i skymning – håller en svart outfit läsbar.
 - Platt geometrisk vektorgrafik, mjuka gradienter, allt ritat i kod.
 - En ansiktslös figur (hoodie + mössa), kroppsspråket gör jobbet.
 - Ljud: procedurellt i prototypen, "inbäddat i bomull" (lågpass + kompressor på master);

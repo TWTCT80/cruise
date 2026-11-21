@@ -32,8 +32,13 @@ export const DEFAULTS = {
   mood: 0.5,               // 0 = golden (Journey) … 1 = dusk (INSIDE)
   riderSoftness: 0.35,     // blur on the rider's edges
   riderHaze: 0.1,          // how much the air tints the rider
-  grain: 0.12,             // film grain / anti-banding dither strength
-  fogAmount: 1.7,            // ground fog thickness multiplier
+  grain: 0.075,             // film grain / anti-banding dither strength
+  fogAmount: 1.95,            // ground fog thickness multiplier
+
+  // --- outfit (HSL per garment; dev panel has presets) ---
+  hoodieHue: 173, hoodieSat: 0.58, hoodieLight: 0.39,
+  pantsHue: 234, pantsSat: 0.2, pantsLight: 0.3,
+  beanieHue: 12, beanieSat: 0.76, beanieLight: 0.61,
 
   // --- audio ---
   masterVolume: 0.8,
@@ -93,6 +98,9 @@ export const RANGES = {
   riderHaze: [0, 0.5, 0.01],
   grain: [0, 0.25, 0.005],
   fogAmount: [0, 2.5, 0.05],
+  hoodieHue: [0, 360, 1], hoodieSat: [0, 1, 0.01], hoodieLight: [0.02, 0.9, 0.01],
+  pantsHue: [0, 360, 1], pantsSat: [0, 1, 0.01], pantsLight: [0.02, 0.9, 0.01],
+  beanieHue: [0, 360, 1], beanieSat: [0, 1, 0.01], beanieLight: [0.02, 0.9, 0.01],
   masterVolume: [0, 1, 0.01],
   rollVolume: [0, 1, 0.01],
   musicVolume: [0, 1, 0.01],

@@ -8,6 +8,7 @@ import { config } from './config.js';
 import { height } from './terrain.js';
 import { createAtmosphere } from './atmosphere.js';
 import { palette, mix } from './palette.js';
+import { outfitColors, outfitKey } from './outfit.js';
 import { spring, stepSpring, spring2, stepSpring2, rope, stepRope } from './cloth.js';
 import { createFog, fogDensity } from './fog.js';
 import { musicPhase } from './music.js';
@@ -15,26 +16,32 @@ import { musicPhase } from './music.js';
 // Rider colours — the only saturated colours in the frame. Per frame they are
 // shaded towards dusk (mood) and lightly hazed into the air (riderHaze), so the
 // rider sits *in* the atmosphere instead of on top of it.
+// Garment colours come from the outfit sliders (outfit.js).
 const RIDER = {
-  hoodie: 0x2a9d8f, hoodieDark: 0x1f7a70, string: 0xf4efe6,
-  pants: 0x3d405b, pantsDark: 0x2f3148, skin: 0xc98a6a,
-  beanie: 0xe76f51, beanieDark: 0xc9553b, shoe: 0xf8f2ea,
+  string: 0xf4efe6, skin: 0xc98a6a, shoe: 0xf8f2ea,
   deck: 0x3a2e39, deckSide: 0xe76f51, wheel: 0xfbeedc, truck: 0xa79a9e,
 };
+const WARM_RIM = 0xffb27a;
 const SHADE = 0x1b1b28;
 
 // Filled per frame from palette(config.mood) + the shaded rider colours.
 const PAL = {};
-let palMood = null, palHaze = null;
+let palKey = null;
 function updatePalette() {
   const P = palette(config.mood);
-  if (P.m === palMood && config.riderHaze === palHaze) return P;
+  const key = `${P.m}|${config.riderHaze}|${outfitKey()}`;
+  if (key === palKey) return P;
   Object.assign(PAL, P);
-  for (const [k, c] of Object.entries(RIDER)) {
+  const o = outfitColors();
+  const base = { ...RIDER, hoodie: o.hoodie, hoodieDark: o.hoodieDark, pants: o.pants,
+    pantsDark: o.pantsDark, beanie: o.beanie, beanieDark: o.beanieDark };
+  for (const [k, c] of Object.entries(base)) {
     PAL[k] = mix(mix(c, SHADE, P.riderShade), P.fog, config.riderHaze);
   }
-  PAL.hoodieLight = mix(P.rim, P.fog, config.riderHaze * 0.5);
-  palMood = P.m; palHaze = config.riderHaze;
+  // rim light: a lifted shade of the hoodie in daylight, warm back-light at
+  // dusk — this is what keeps a black outfit readable against a dark sky
+  PAL.hoodieLight = mix(mix(o.hoodieRim, WARM_RIM, Math.min(1, P.m * 1.2)), P.fog, config.riderHaze * 0.5);
+  palKey = key;
   return P;
 }
 
