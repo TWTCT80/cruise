@@ -100,18 +100,13 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
 - **Outfit (`src/outfit.js`):** färgton/mättnad/ljushet per plagg (tröja, byxor, mössa) i dev-panelen,
   med förval (Original, Svart, Svart/röd, Sand). Snören och skor alltid benvita. Kantljuset tar
   tröjans färg i dagsljus och blir varmt motljus i skymning – håller en svart outfit läsbar.
-- **Förgrund (`src/foreground.js`):** mörka, lätt suddiga siluetter mellan kamera och gubbe,
-  parallax 1,45 (skymning blir kort), vajar i vinden, färg följer `mood`. Mot enformighet:
-  - **Zoner** som glider fram längs vägen: *park* (träd, buskar, ormbunkar, blommor, vass, bänkar),
-    *gata* (vägskyltar, gatunamn, busskur, cykelställ, pollare, elskåp, trafikljus, elsparkcykel,
-    brandpost, krukor, elledningar, ljusslingor, hängande butiksskyltar), *villa* (brevlådor,
-    häckar, staket/räcken, buskar, ljusslingor).
-  - Aldrig samma föremål två gånger i rad; tomma platser ger andrum; storlek och spegling varierar.
-  - **Procedurella grenar** i 6 stilar: ek, hängbjörk, gran, lönn, kal, murgröna. Träd: björk
-    (med näverränder), ek, tall.
-  - Ljusslingor, trafikljus och hängande lampor glöder (starkare i skymning).
-  - Reglage: `foreground` (0 av, <0,5 utan träd), `fgBlur`. Inför trick (M2–3): bedöm om träd
-    i full höjd stör läsbarheten – i så fall glesa ut eller tona ner när de passerar gubben.
+- **Förgrund (`src/foreground.js`) – bara natur**, i stil med Toms referensbilder (silhuett-illustration):
+  stora enkla massor i stället för tunna detaljer – **lövklungor** (sluten kropp med lövkant) och
+  platta **lövkuddar** (skärmtall). Få element som **ramar in**: träd med 1–3 stammar, skärmtall,
+  gran, tunga grenar uppifrån, buskar – stora element alltid glest. **Sammanhängande äng** längs
+  nederkanten med gräs, fröax och runda blommor. Parallax 1,45, vajar i vinden, färg följer `mood`.
+  Reglage: `foreground` (<0,5 utan träd), `meadow` (ängens höjd), `fgBlur`.
+  (Stadsföremål provades 2026-11-21 och valdes bort.) Inför trick: bedöm om träden stör läsbarheten.
 - Platt geometrisk vektorgrafik, mjuka gradienter, allt ritat i kod.
 - En ansiktslös figur (hoodie + mössa), kroppsspråket gör jobbet.
 - Ljud: procedurellt i prototypen, "inbäddat i bomull" (lågpass + kompressor på master);
