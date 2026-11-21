@@ -37,7 +37,7 @@ Beslutat i grill-session 2026-11-21. Ändra här när ett beslut ändras.
 
 Luft: ~0,9 s, mjukt **häng** vid toppen (lägre gravitation nära vändpunkten, `hangGravity`).
 **Kroppen hoppar, brädan följer** (rättat efter Toms referensfoton 2026-11-22): huk innan pop är bara en
-lätt knäböj; i luften stannar höften högt och knäna dras UPP mot bröstet (inte höften ner mot brädan);
+lätt knäböj; i luften stannar höften högt och knäna dras UPP och ISÄR (grodhuk: framknä mot nosen, bakknä mot tailen) – inte höften ner mot brädan;
 bakfoten på tailen, framfoten glider mot nosen, fötterna lättar från brädan vid toppen; brädan ~50° nos-upp
 vid popet. Keyframes i `OLLIE_KEYS` (render.js).
 Ingen konstant slow motion – den bryter rytmen och slits ut. `airSlowmo` finns som reglage (0 = av);

@@ -217,9 +217,9 @@ export function createRenderer(app) {
   const OLLIE_KEYS = [
     [0.00, { crouch: -6, arms: 0.30, fx: 15, bx: -20, gf: 0, gb: 0, hipX: -2, lean: 0.04 }], // 2. pop: legs extend, back foot on tail
     [0.12, { crouch: -9, arms: 0.40, fx: 18, bx: -23, gf: 0, gb: 0, hipX: 0, lean: 0.02 }],
-    [0.30, { crouch: 6, arms: 0.75, fx: 26, bx: -22, gf: 2, gb: 3, hipX: 3, lean: 0 }],     // 3. front foot drags to the nose
-    [0.50, { crouch: 15, arms: 0.92, fx: 21, bx: -20, gf: 6, gb: 7, hipX: 3, lean: 0 }],    // 4. apex: knees up, feet float
-    [0.68, { crouch: 13, arms: 0.88, fx: 18, bx: -19, gf: 4, gb: 4, hipX: 2, lean: 0 }],
+    [0.30, { crouch: 8, arms: 0.75, fx: 27, bx: -24, gf: 3, gb: 4, hipX: 2, lean: 0.03 }],  // 3. front foot drags to the nose
+    [0.50, { crouch: 19, arms: 0.92, fx: 26, bx: -27, gf: 9, gb: 10, hipX: 0, lean: 0.08 }], // 4. apex: frog squat, knees spread, feet float
+    [0.68, { crouch: 16, arms: 0.88, fx: 22, bx: -24, gf: 6, gb: 6, hipX: 0, lean: 0.06 }],
     [0.88, { crouch: 1, arms: 0.6, fx: 16, bx: -18, gf: 0, gb: 0, hipX: 0, lean: 0.02 }],    // 5. legs reach down
     [1.00, { crouch: 3, arms: 0.45, fx: 15, bx: -17, gf: 0, gb: 0, hipX: 0, lean: 0.03 }],
   ];
@@ -251,7 +251,8 @@ export function createRenderer(app) {
   }
   const THIGH = 32, SHIN = 32;
 
-  function leg(g, hip, foot, color) {
+  // knee = +1 bends towards the nose, -1 towards the tail
+  function leg(g, hip, foot, color, kneeDir = 1) {
     const dx = foot.x - hip.x, dy = foot.y - hip.y;
     let d = Math.hypot(dx, dy);
     const maxD = THIGH + SHIN - 0.01;
@@ -259,7 +260,7 @@ export function createRenderer(app) {
     const a = Math.atan2(dy, dx);
     const cosK = (THIGH * THIGH + d * d - SHIN * SHIN) / (2 * THIGH * d);
     const k = Math.acos(Math.max(-1, Math.min(1, cosK)));
-    const ang = a - k;
+    const ang = a - k * kneeDir;
     const knee = { x: hip.x + Math.cos(ang) * THIGH, y: hip.y + Math.sin(ang) * THIGH };
     const fx = hip.x + Math.cos(a) * d, fy = hip.y + Math.sin(a) * d;
     g.moveTo(hip.x, hip.y).lineTo(knee.x, knee.y).lineTo(fx, fy)
@@ -418,7 +419,8 @@ export function createRenderer(app) {
     const bu = lerp(0.35 + swing - brake * 0.6, 2.45, arms);
     arm(g, shoulder, bu, lerp(0.1 + swing * 0.5, bu * 0.92, arms), PAL.hoodieDark);
     // back leg
-    leg(g, hip, back, PAL.pantsDark);
+    // in the air the knees spread apart (frog squat): the back knee points to the tail
+    leg(g, hip, back, PAL.pantsDark, p.airborne ? -1 : 1);
     // front leg — drawn before the torso so the hoodie hangs over the thighs
     leg(g, hip, front, PAL.pants);
     // torso: hoodie with a free-moving back hem
