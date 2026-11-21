@@ -2,7 +2,7 @@ import { Application } from '../vendor/pixi.min.mjs';
 import { config, loadConfig } from './config.js';
 import { createPlayer, update, pressLeft, releaseLeft } from './player.js';
 import { createRenderer } from './render.js';
-import { unlockAudio, updateAudio, seamClack, kickScuff } from './audio.js';
+import { unlockAudio, updateAudio, seamClack, kickScuff, footOnDeck } from './audio.js';
 import { createDevPanel } from './devpanel.js';
 
 loadConfig();
@@ -21,6 +21,7 @@ const player = createPlayer();
 const renderer = createRenderer(app);
 window.__cruise = { player, config }; // debug/test hook
 
+player.onFootBack = () => footOnDeck();
 player.onKickContact = () => {
   kickScuff();
   hints.onPush();

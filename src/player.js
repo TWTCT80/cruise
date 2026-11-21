@@ -42,6 +42,7 @@ function startPush(p) {
   p.pushing = true;
   p.pushT = 0;
   p.pushApplied = false;
+  p.footBack = false;
   p.queuedPush = false;
   p.onPush?.();
 }
@@ -61,6 +62,7 @@ export function update(p, dt) {
       p.speed += c.pushPower * (0.25 + 0.75 * falloff);
       p.onKickContact?.();
     }
+    if (!p.footBack && p.pushT >= 0.93) { p.footBack = true; p.onFootBack?.(); }
     if (p.pushT >= 1) {
       p.pushing = false;
       // A queued tap becomes another kick; a queued press that is still

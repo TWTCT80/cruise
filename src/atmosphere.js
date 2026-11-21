@@ -2,7 +2,8 @@
 // haze bands between depth layers and dust motes floating in the light.
 // Principle: everything far away dissolves into one warm haze colour.
 
-import { Container, Graphics, Sprite, Texture } from '../vendor/pixi.min.mjs';
+import { Container, Graphics, Sprite, Texture, TilingSprite } from '../vendor/pixi.min.mjs';
+import { config } from './config.js';
 
 export const FOG = 0xf5ddbd;
 
@@ -136,6 +137,23 @@ export function createAtmosphere() {
   const vignette = new Sprite(vignetteTex);
   front.addChild(vignette);
 
+  // Film grain + dither: a fine noise layer added on top. Its main job is
+  // breaking up colour banding in the big soft gradients (sky, haze, fog);
+  // at higher settings it reads as subtle film grain. Re-rolled at 24 fps.
+  const noiseTex = canvasTexture(256, 256, (g, w, h) => {
+    const img = g.createImageData(w, h);
+    for (let i = 0; i < img.data.length; i += 4) {
+      // triangular-ish distribution: average of two randoms
+      const v = Math.round(((Math.random() + Math.random()) / 2) * 255);
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  });
+  const grain = new TilingSprite({ texture: noiseTex, width: 100, height: 100 });
+  grain.blendMode = 'add';
+  front.addChild(grain);
+  let grainClock = 0;
+
   function update(W, H, camX, scale, t) {
     sky.width = W; sky.height = H;
     const sunX = W * 0.7, sunY = H * 0.3;
@@ -172,6 +190,13 @@ export function createAtmosphere() {
     }
 
     vignette.width = W; vignette.height = H;
+
+    grain.width = W; grain.height = H;
+    grain.alpha = config.grain;
+    if (t - grainClock > 1 / 24) {
+      grainClock = t;
+      grain.tilePosition.set(Math.random() * 256, Math.random() * 256);
+    }
   }
 
   function placeHaze(i, W, H, yFrac, hFrac, alpha) {

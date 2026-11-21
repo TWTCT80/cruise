@@ -149,3 +149,11 @@ export function updateMusic(p, dt) {
 export function currentChordNotes() {
   return CHORDS[(chordIndex - 1 + CHORDS.length) % CHORDS.length].notes;
 }
+
+// 0..1 position within the current chord. The rider's idle breathing uses it
+// so he breathes in time with the music (two breaths per chord).
+export function musicPhase() {
+  if (!ctx) return null;
+  const start = nextChordAt - CHORD_SECONDS;
+  return Math.max(0, Math.min(1, (ctx.currentTime - start) / CHORD_SECONDS));
+}

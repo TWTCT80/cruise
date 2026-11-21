@@ -28,6 +28,10 @@ export const DEFAULTS = {
   boardTiltSmooth: 14,    // how fast board aligns to ground
   bodyLean: 0.9,          // how much the rider leans into acceleration
 
+  // --- look ---
+  grain: 0.03,             // film grain / anti-banding dither strength
+  fogAmount: 1,            // ground fog thickness multiplier
+
   // --- audio ---
   masterVolume: 0.8,
   rollVolume: 0.55,
@@ -81,6 +85,8 @@ export const RANGES = {
   riderScreenX: [0.15, 0.5, 0.01],
   boardTiltSmooth: [2, 40, 1],
   bodyLean: [0, 2, 0.05],
+  grain: [0, 0.12, 0.005],
+  fogAmount: [0, 2.5, 0.05],
   masterVolume: [0, 1, 0.01],
   rollVolume: [0, 1, 0.01],
   musicVolume: [0, 1, 0.01],

@@ -120,8 +120,15 @@ export function seamClack(speed, front = true) {
   burst({ freq: 450 + 200 * s, dur: 0.05, gain: g * 0.35 });
 }
 
+// Pushing foot brushes the ground: barely there.
 export function kickScuff() {
   if (!ctx) return;
-  burst({ freq: 520 + Math.random() * 120, dur: 0.2, gain: 0.13, attack: 0.02 });
-  thump(58, 0.12, 0.08);
+  burst({ freq: 300 + Math.random() * 60, dur: 0.24, gain: 0.035, attack: 0.04 });
+}
+
+// Foot settles back on the deck: an extremely muffled thump, felt more than heard.
+export function footOnDeck() {
+  if (!ctx) return;
+  thump(46, 0.16, 0.045);
+  burst({ freq: 160, dur: 0.07, gain: 0.012, attack: 0.012 });
 }

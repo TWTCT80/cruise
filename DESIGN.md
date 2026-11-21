@@ -87,6 +87,10 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
 - **Sekundär rörelse:** fjädrar för lutning/nedböjning/huvud (lätt överslag = mjukhet),
   huvtröjans bakkant fladdrar i fartvinden, verlet-simulerade snören, studsande pompom och huva,
   knäna fjädrar vid trottoarskarvar. Kod: `src/cloth.js`, `src/atmosphere.js`.
+- **Från INSIDE:** fint brus över bilden mot färgband i gradienter + svagt filmkorn (`grain`);
+  markdimma i världen (`src/fog.js`) – dimbankar som driver med vinden, olika täta längs vägen,
+  ett lager bakom och ett framför gubben så han åker *genom* dimman (`fogAmount`); disets
+  täthet i fjärran följer samma täthet. Gubben andas i takt med musiken (två andetag per ackord).
 - Platt geometrisk vektorgrafik, mjuka gradienter, allt ritat i kod.
 - En ansiktslös figur (hoodie + mössa), kroppsspråket gör jobbet.
 - Ljud: procedurellt i prototypen, "inbäddat i bomull" (lågpass + kompressor på master);
@@ -96,6 +100,7 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
   Reagerar på farten: tunnare/mörkare när man står still, fylligare/ljusare + fler toner i fart.
   **Allt i D-dur** – landningsljud (M2) byggs av `currentChordNotes()` så de alltid stämmer med musiken.
   Egen volym `musicVolume` i dev-panelen.
+- Fotljud: skrap vid spark nästan ohörbart; ytterst dov duns när foten landar på brädan igen.
 
 ## Verktyg
 

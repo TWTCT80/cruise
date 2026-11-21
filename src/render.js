@@ -8,6 +8,8 @@ import { config } from './config.js';
 import { height } from './terrain.js';
 import { createAtmosphere, FOG, mix } from './atmosphere.js';
 import { spring, stepSpring, spring2, stepSpring2, rope, stepRope } from './cloth.js';
+import { createFog, fogDensity } from './fog.js';
+import { musicPhase } from './music.js';
 
 const PAL = {
   far: mix(0xc99a78, FOG, 0.6),
@@ -55,6 +57,7 @@ function noise1(x) {
 export function createRenderer(app) {
   const stage = app.stage;
   const atm = createAtmosphere();
+  const fog = createFog();
 
   const far = new Graphics();
   const mid = new Graphics();
@@ -68,7 +71,7 @@ export function createRenderer(app) {
   const fg = new Graphics();
 
   rider.addChild(boardG, bodyG);
-  world.addChild(groundG, riderShadow, rider);
+  world.addChild(groundG, fog.back, riderShadow, rider, fog.front);
   stage.addChild(atm.back, far, atm.haze[0], mid, atm.haze[1], town, atm.haze[2], world, fg, atm.front);
 
   const cam = { look: 0, y: 0, zoom: 1, init: false, scroll: 0, lastX: null };
@@ -238,7 +241,10 @@ export function createRenderer(app) {
     g.clear();
     const push = p.pushing ? p.pushT : -1;
     const brake = p.brakeAmount;
-    const breathe = Math.sin(t * 2.1) * 1.2;
+    // breathe in time with the music: two breaths per chord (falls back to a
+    // free-running cycle before audio has started)
+    const mp = musicPhase();
+    const breathe = (mp === null ? Math.sin(t * 1.6) : Math.sin(mp * Math.PI * 4 - Math.PI / 2)) * 1.4;
 
     // External forces in the rider's local frame.
     const G = 900;
@@ -398,15 +404,19 @@ export function createRenderer(app) {
 
     atm.update(W, H, px, bgScale, t);
     drawRidge(far, W, H, px, bgScale, 0.06, 0.6, 0.2, 260, PAL.far, 12);
-    atm.placeHaze(0, W, H, 0.62, 0.22, 0.85);
+    // distant haze thickens on foggy stretches of road
+    const dens = fogDensity(p.x + W / scale * 0.3);
+    const hz = 0.75 + 0.45 * dens;
+    atm.placeHaze(0, W, H, 0.62, 0.22, Math.min(1, 0.85 * hz));
     drawRidge(mid, W, H, px, bgScale, 0.16, 0.69, 0.13, 150, PAL.mid, 10);
-    atm.placeHaze(1, W, H, 0.69, 0.16, 0.7);
+    atm.placeHaze(1, W, H, 0.69, 0.16, Math.min(1, 0.7 * hz));
     drawTown(town, W, H, px, bgScale, 0.38);
-    atm.placeHaze(2, W, H, 0.7, 0.1, 0.55);
+    atm.placeHaze(2, W, H, 0.7, 0.1, Math.min(1, 0.55 * hz));
 
     const x0 = (-world.position.x) / scale - 60;
     const x1 = x0 + W / scale + 120;
     drawGround(groundG, x0, x1);
+    fog.update(x0, x1, dt);
 
     rider.position.set(p.x, groundY);
     rider.rotation = -p.boardAngle;   // physics: y up, screen: y down
