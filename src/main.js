@@ -126,7 +126,7 @@ app.ticker.add((ticker) => {
   time += dt;
 
   hints.tick();
-  updateAudio(player);
+  updateAudio(player, dt);
   renderer.render(player, dt, time);
 });
 

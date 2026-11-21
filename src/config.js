@@ -31,6 +31,7 @@ export const DEFAULTS = {
   // --- audio ---
   masterVolume: 0.8,
   rollVolume: 0.55,
+  musicVolume: 0.5,
   seamSpacing: 140,       // distance between sidewalk seams (clack)
 };
 
@@ -82,5 +83,6 @@ export const RANGES = {
   bodyLean: [0, 2, 0.05],
   masterVolume: [0, 1, 0.01],
   rollVolume: [0, 1, 0.01],
+  musicVolume: [0, 1, 0.01],
   seamSpacing: [60, 400, 5],
 };

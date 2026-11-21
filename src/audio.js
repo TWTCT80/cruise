@@ -5,6 +5,7 @@
 // Real recorded samples replace these before release (see DESIGN.md).
 
 import { config } from './config.js';
+import { startMusic, updateMusic } from './music.js';
 
 let ctx = null;
 let master, rollGain, rollFilter, rumbleGain, brakeGain, noiseBuf;
@@ -50,6 +51,9 @@ export function unlockAudio() {
   comp.attack.value = 0.01; comp.release.value = 0.2;
   master.connect(tame).connect(comp).connect(ctx.destination);
 
+  // music has its own gentle filtering, so it joins after the cotton lowpass
+  startMusic(ctx, comp);
+
   noiseBuf = makeNoise(2);
   const brownBuf = makeNoise(4, true);
 
@@ -68,8 +72,9 @@ export function unlockAudio() {
     .connect(brakeGain).connect(master);
 }
 
-export function updateAudio(p) {
+export function updateAudio(p, dt = 1 / 60) {
   if (!ctx) return;
+  updateMusic(p, dt);
   const t = ctx.currentTime;
   const s = Math.min(1, p.speed / 900);
   const vol = config.rollVolume;

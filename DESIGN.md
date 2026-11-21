@@ -89,7 +89,13 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
   knäna fjädrar vid trottoarskarvar. Kod: `src/cloth.js`, `src/atmosphere.js`.
 - Platt geometrisk vektorgrafik, mjuka gradienter, allt ritat i kod.
 - En ansiktslös figur (hoodie + mössa), kroppsspråket gör jobbet.
-- Ljud: procedurellt/fria CC0-ljud + lo-fi-loop i prototypen; egna inspelade skateljud inför release.
+- Ljud: procedurellt i prototypen, "inbäddat i bomull" (lågpass + kompressor på master);
+  egna inspelade skateljud inför release.
+- **Musik: generativ ambient i kod** (`src/music.js`) – ersätter lo-fi-loopen. Långsamma pad-ackord
+  (Dmaj9 → Bm9 → Gmaj9 → A6/9, 8 s/ackord), mjuk bas, glesa vindspelstoner (D-dur pentatonisk) i stor reverb.
+  Reagerar på farten: tunnare/mörkare när man står still, fylligare/ljusare + fler toner i fart.
+  **Allt i D-dur** – landningsljud (M2) byggs av `currentChordNotes()` så de alltid stämmer med musiken.
+  Egen volym `musicVolume` i dev-panelen.
 
 ## Verktyg
 
