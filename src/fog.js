@@ -6,7 +6,6 @@
 
 import { Container, Sprite, Texture } from '../vendor/pixi.min.mjs';
 import { height } from './terrain.js';
-import { FOG } from './atmosphere.js';
 import { config } from './config.js';
 
 function hash(n) {
@@ -54,7 +53,6 @@ export function createFog() {
   function sprite(layer) {
     const s = new Sprite(tex);
     s.anchor.set(0.5, 0.62);
-    s.tint = FOG;
     (layer === 'back' ? back : front).addChild(s);
     return s;
   }
@@ -80,7 +78,9 @@ export function createFog() {
     for (let i = used; i < pool.length; i++) pool[i].visible = false;
   }
 
-  function update(x0, x1, dt) {
+  function update(x0, x1, dt, tint) {
+    for (const s of back.children) s.tint = tint;
+    for (const s of front.children) s.tint = tint;
     drift += dt * 22; // slow wind, world units/s
     layout('back', x0, x1, { y: -18, w: 760, h: 150, alpha: 0.95, speed: 1, seed: 0 });
     layout('front', x0, x1, { y: 70, w: 900, h: 190, alpha: 0.6, speed: 1.4, seed: 50 });

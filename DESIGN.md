@@ -91,6 +91,12 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
   markdimma i världen (`src/fog.js`) – dimbankar som driver med vinden, olika täta längs vägen,
   ett lager bakom och ett framför gubben så han åker *genom* dimman (`fogAmount`); disets
   täthet i fjärran följer samma täthet. Gubben andas i takt med musiken (två andetag per ackord).
+- **Stämning (`mood`, `src/palette.js`):** tre nyckellägen som blandas – 0 = GOLDEN (Journey),
+  0,5 = EMBER (blandningen: mörk plommonhimmel över brinnande horisont, mörka varma siluetter),
+  1 = DUSK (INSIDE: mörk skifferhimmel, nästan svarta siluetter, lyktor som lyser).
+  Standard 0,5. Samma nyckellägen animeras av dygnsrytmen i M4.
+- **Gubben i luften:** lätt oskärpa på konturerna (`riderSoftness`) + lite dis i hans färger
+  (`riderHaze`); skuggas mot skymningen och får varmt motljus i kanten vid mörkare stämning.
 - Platt geometrisk vektorgrafik, mjuka gradienter, allt ritat i kod.
 - En ansiktslös figur (hoodie + mössa), kroppsspråket gör jobbet.
 - Ljud: procedurellt i prototypen, "inbäddat i bomull" (lågpass + kompressor på master);

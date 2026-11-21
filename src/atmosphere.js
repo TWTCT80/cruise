@@ -5,13 +5,8 @@
 import { Container, Graphics, Sprite, Texture, TilingSprite } from '../vendor/pixi.min.mjs';
 import { config } from './config.js';
 
-export const FOG = 0xf5ddbd;
-
-export function mix(a, b, t) {
-  const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
-  const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
-  return (Math.round(ar + (br - ar) * t) << 16) | (Math.round(ag + (bg - ag) * t) << 8) | Math.round(ab + (bb - ab) * t);
-}
+import { hex } from './palette.js';
+export { mix } from './palette.js';
 
 function canvasTexture(w, h, draw) {
   const c = document.createElement('canvas');
@@ -26,14 +21,19 @@ function rand(seed) {
 }
 
 export function createAtmosphere() {
-  const sky = new Sprite(canvasTexture(4, 512, (g, w, h) => {
-    const gr = g.createLinearGradient(0, 0, 0, h);
-    gr.addColorStop(0, '#dcae8c');
-    gr.addColorStop(0.35, '#ebc59f');
-    gr.addColorStop(0.7, '#f6dbb7');
-    gr.addColorStop(1, '#fcecd3');
-    g.fillStyle = gr; g.fillRect(0, 0, w, h);
-  }));
+  // sky gradient is redrawn whenever the mood changes
+  const skyCanvas = document.createElement('canvas');
+  skyCanvas.width = 4; skyCanvas.height = 512;
+  const skyTex = Texture.from(skyCanvas);
+  const sky = new Sprite(skyTex);
+  let skyMood = null;
+  function paintSky(P) {
+    const g = skyCanvas.getContext('2d');
+    const gr = g.createLinearGradient(0, 0, 0, 512);
+    [0, 0.35, 0.7, 1].forEach((stop, i) => gr.addColorStop(stop, hex(P.sky[i])));
+    g.fillStyle = gr; g.fillRect(0, 0, 4, 512);
+    skyTex.source.update();
+  }
 
   const glowTex = canvasTexture(256, 256, (g, w) => {
     const r = w / 2;
@@ -68,9 +68,9 @@ export function createAtmosphere() {
   });
   const hazeTex = canvasTexture(4, 256, (g, w, h) => {
     const gr = g.createLinearGradient(0, 0, 0, h);
-    gr.addColorStop(0, 'rgba(245,221,189,0)');
-    gr.addColorStop(0.55, 'rgba(245,221,189,1)');
-    gr.addColorStop(1, 'rgba(245,221,189,0)');
+    gr.addColorStop(0, 'rgba(255,255,255,0)');
+    gr.addColorStop(0.55, 'rgba(255,255,255,1)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = gr; g.fillRect(0, 0, w, h);
   });
   const cloudTex = canvasTexture(512, 192, (g) => {
@@ -87,8 +87,8 @@ export function createAtmosphere() {
   const vignetteTex = canvasTexture(256, 256, (g, w) => {
     const r = w / 2;
     const gr = g.createRadialGradient(r, r * 0.8, r * 0.5, r, r, r * 1.1);
-    gr.addColorStop(0, 'rgba(120,60,50,0)');
-    gr.addColorStop(1, 'rgba(120,60,50,0.22)');
+    gr.addColorStop(0, 'rgba(60,30,35,0)');
+    gr.addColorStop(1, 'rgba(60,30,35,1)');
     g.fillStyle = gr; g.fillRect(0, 0, w, w);
   });
 
@@ -101,8 +101,7 @@ export function createAtmosphere() {
   for (let i = 0; i < 6; i++) {
     const c = new Sprite(cloudTex);
     c.anchor.set(0.5);
-    c.alpha = 0.5 + rnd() * 0.4;
-    clouds.push({ s: c, u: rnd(), v: 0.08 + rnd() * 0.32, size: 0.7 + rnd() * 0.9, drift: 0.004 + rnd() * 0.006 });
+    clouds.push({ s: c, a: 0.5 + rnd() * 0.4, u: rnd(), v: 0.08 + rnd() * 0.32, size: 0.7 + rnd() * 0.9, drift: 0.004 + rnd() * 0.006 });
     back.addChild(c);
   }
 
@@ -154,14 +153,19 @@ export function createAtmosphere() {
   front.addChild(grain);
   let grainClock = 0;
 
-  function update(W, H, camX, scale, t) {
+  function update(W, H, camX, scale, t, P) {
+    if (skyMood !== P.m) { paintSky(P); skyMood = P.m; }
     sky.width = W; sky.height = H;
-    const sunX = W * 0.7, sunY = H * 0.3;
+    const sunX = W * 0.7, sunY = H * P.sunY;
     sunGlow.position.set(sunX, sunY);
     sunGlow.scale.set(H / 330);
-    sunDisc.clear().circle(sunX, sunY, H * 0.045).fill({ color: 0xfffcf2 });
+    sunGlow.tint = P.sunTint;
+    sunDisc.clear().circle(sunX, sunY, H * P.sunR).fill({ color: P.sunDisc });
     bigGlow.position.set(sunX, sunY);
     bigGlow.scale.set(H / 95);
+    bigGlow.tint = P.sunTint;
+    bigGlow.alpha = P.bigGlow;
+    for (const h of haze) h.tint = P.fog;
 
     for (const c of clouds) {
       const span = W * 1.8;
@@ -169,6 +173,8 @@ export function createAtmosphere() {
       if (x < 0) x += span;
       c.s.position.set(x - W * 0.4, H * c.v);
       c.s.scale.set((H / 420) * c.size);
+      c.s.tint = P.cloud;
+      c.s.alpha = c.a * P.cloudAlpha;
     }
 
     for (const r of rays) {
@@ -176,8 +182,8 @@ export function createAtmosphere() {
       r.s.rotation = r.ang + Math.sin(t * 0.07 + r.phase) * 0.04;
       r.s.width = H * 0.22 * r.w;
       r.s.height = H * 1.5;
-      r.s.alpha = 0.07 + 0.07 * (0.5 + 0.5 * Math.sin(t * r.speed + r.phase));
-      r.s.tint = 0xfff1d8;
+      r.s.alpha = (0.07 + 0.07 * (0.5 + 0.5 * Math.sin(t * r.speed + r.phase))) * P.rayAlpha;
+      r.s.tint = P.sunTint === 0xffffff ? 0xfff1d8 : P.sunTint;
     }
 
     for (const m of motes) {
@@ -186,10 +192,11 @@ export function createAtmosphere() {
       if (x < 0) x += span;
       m.s.position.set(x - 40, H * m.y + Math.sin(t * 0.5 + m.ph * 2) * 14 * m.z);
       m.s.scale.set((H / 390) * m.size * 2.2);
-      m.s.alpha = m.a * (0.6 + 0.4 * Math.sin(t * 0.8 + m.ph));
+      m.s.alpha = m.a * (0.6 + 0.4 * Math.sin(t * 0.8 + m.ph)) * P.moteAlpha;
     }
 
     vignette.width = W; vignette.height = H;
+    vignette.alpha = Math.min(1, 0.2 * P.vignette);
 
     grain.width = W; grain.height = H;
     grain.alpha = config.grain;

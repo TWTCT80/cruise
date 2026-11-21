@@ -3,45 +3,40 @@
 // rider is the only saturated colour (teal hoodie). Secondary motion via
 // springs + verlet ropes (see cloth.js).
 
-import { Container, Graphics } from '../vendor/pixi.min.mjs';
+import { BlurFilter, Container, Graphics, Sprite, Texture } from '../vendor/pixi.min.mjs';
 import { config } from './config.js';
 import { height } from './terrain.js';
-import { createAtmosphere, FOG, mix } from './atmosphere.js';
+import { createAtmosphere } from './atmosphere.js';
+import { palette, mix } from './palette.js';
 import { spring, stepSpring, spring2, stepSpring2, rope, stepRope } from './cloth.js';
 import { createFog, fogDensity } from './fog.js';
 import { musicPhase } from './music.js';
 
-const PAL = {
-  far: mix(0xc99a78, FOG, 0.6),
-  mid: mix(0xb98668, FOG, 0.42),
-  town: mix(0x9f6e5c, FOG, 0.2),
-  townWin: 0xfff0c4,
-  groundTop: 0xf4e0c8,   // sidewalk
-  groundEdge: 0xfff5e8,
-  seam: 0xdcc0a4,
-  curb: 0xd3aa8e,
-  road: 0xb3876e,
-  laneLine: 0xf0d6bc,
-  post: 0x8a6352,
-  lamp: 0xfff2cc,
-  fg: 0x6b4a3c,
-  // rider — the only saturated colours in the frame
-  hoodie: 0x2a9d8f,
-  hoodieDark: 0x1f7a70,
-  hoodieLight: 0x48b8a9,
-  string: 0xf4efe6,
-  pants: 0x3d405b,
-  pantsDark: 0x2f3148,
-  skin: 0xc98a6a,
-  beanie: 0xe76f51,
-  beanieDark: 0xc9553b,
-  shoe: 0xf8f2ea,
-  deck: 0x3a2e39,
-  deckSide: 0xe76f51,
-  wheel: 0xfbeedc,
-  truck: 0xa79a9e,
-  shadow: 0x7a4a34,
+// Rider colours — the only saturated colours in the frame. Per frame they are
+// shaded towards dusk (mood) and lightly hazed into the air (riderHaze), so the
+// rider sits *in* the atmosphere instead of on top of it.
+const RIDER = {
+  hoodie: 0x2a9d8f, hoodieDark: 0x1f7a70, string: 0xf4efe6,
+  pants: 0x3d405b, pantsDark: 0x2f3148, skin: 0xc98a6a,
+  beanie: 0xe76f51, beanieDark: 0xc9553b, shoe: 0xf8f2ea,
+  deck: 0x3a2e39, deckSide: 0xe76f51, wheel: 0xfbeedc, truck: 0xa79a9e,
 };
+const SHADE = 0x1b1b28;
+
+// Filled per frame from palette(config.mood) + the shaded rider colours.
+const PAL = {};
+let palMood = null, palHaze = null;
+function updatePalette() {
+  const P = palette(config.mood);
+  if (P.m === palMood && config.riderHaze === palHaze) return P;
+  Object.assign(PAL, P);
+  for (const [k, c] of Object.entries(RIDER)) {
+    PAL[k] = mix(mix(c, SHADE, P.riderShade), P.fog, config.riderHaze);
+  }
+  PAL.hoodieLight = mix(P.rim, P.fog, config.riderHaze * 0.5);
+  palMood = P.m; palHaze = config.riderHaze;
+  return P;
+}
 
 function hash(n) {
   const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
@@ -71,7 +66,25 @@ export function createRenderer(app) {
   const fg = new Graphics();
 
   rider.addChild(boardG, bodyG);
-  world.addChild(groundG, fog.back, riderShadow, rider, fog.front);
+  // soften the rider's vector edges to match the soft world
+  const riderBlur = new BlurFilter({ strength: 1, quality: 3 });
+  riderBlur.resolution = app.renderer.resolution;
+  riderBlur.padding = 8;
+  rider.filters = [riderBlur];
+  // lamp halos: soft radial sprites (Graphics circles band into rings)
+  const lampGlows = new Container();
+  const glowTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(255,255,255,1)');
+    gr.addColorStop(0.25, 'rgba(255,255,255,0.45)');
+    gr.addColorStop(0.6, 'rgba(255,255,255,0.12)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    return Texture.from(c);
+  })();
+  world.addChild(groundG, lampGlows, fog.back, riderShadow, rider, fog.front);
   stage.addChild(atm.back, far, atm.haze[0], mid, atm.haze[1], town, atm.haze[2], world, fg, atm.front);
 
   const cam = { look: 0, y: 0, zoom: 1, init: false, scroll: 0, lastX: null };
@@ -128,7 +141,7 @@ export function createRenderer(app) {
         if (hash(i * 13 + k) > 0.6) {
           const wx = x + w * (0.18 + 0.2 * k);
           const wy = base - h * (0.35 + 0.4 * hash(i * 7 + k));
-          if (wx + ws < x + w) g.rect(wx, wy, ws, ws * 1.3).fill({ color: PAL.townWin, alpha: 0.5 });
+          if (wx + ws < x + w) g.rect(wx, wy, ws, ws * 1.3).fill({ color: PAL.townWin, alpha: PAL.townWinAlpha });
         }
       }
     }
@@ -161,14 +174,30 @@ export function createRenderer(app) {
     }
     // lamps sit at k*ps + 400; start one lamp left of the view so a lamp
     // whose arm/glow is still visible isn't culled early
+    lampAt.length = 0;
     const ps = 1150;
     for (let x = Math.floor((x0 - 400 - 100) / ps) * ps + 400; x <= x1 + 100; x += ps) {
       const y = -height(x) + 4;
       g.roundRect(x - 4, y - 300, 8, 300, 4).fill({ color: PAL.post });
       g.moveTo(x, y - 296).quadraticCurveTo(x + 4, y - 330, x + 40, y - 326).stroke({ width: 7, color: PAL.post, cap: 'round' });
-      g.circle(x + 44, y - 318, 30).fill({ color: PAL.lamp, alpha: 0.22 });
+      lampAt.push(x + 44, y - 318);
       g.circle(x + 44, y - 320, 9).fill({ color: PAL.lamp });
     }
+  }
+
+  const lampAt = [];
+  function placeLampGlows() {
+    let i = 0;
+    for (; i < lampAt.length / 2; i++) {
+      let s = lampGlows.children[i];
+      if (!s) { s = new Sprite(glowTex); s.anchor.set(0.5); s.blendMode = 'add'; lampGlows.addChild(s); }
+      s.visible = true;
+      s.position.set(lampAt[i * 2], lampAt[i * 2 + 1]);
+      s.width = s.height = 240;
+      s.tint = PAL.lamp;
+      s.alpha = PAL.lampGlow * 1.6;
+    }
+    for (; i < lampGlows.children.length; i++) lampGlows.children[i].visible = false;
   }
 
   function drawForeground(g, W, H, camX, scale) {
@@ -376,6 +405,7 @@ export function createRenderer(app) {
     const W = app.screen.width, H = app.screen.height;
     const c = config;
     const s = Math.min(1, p.speed / c.maxSpeed);
+    const P = updatePalette();
 
     const viewH = c.baseViewHeight * (1 + c.speedZoomOut * s);
     const targetZoom = H / viewH;
@@ -402,7 +432,7 @@ export function createRenderer(app) {
     const bgScale = H / c.baseViewHeight;
     const px = cam.scroll / bgScale; // layers compute px * bgScale * factor
 
-    atm.update(W, H, px, bgScale, t);
+    atm.update(W, H, px, bgScale, t, P);
     drawRidge(far, W, H, px, bgScale, 0.06, 0.6, 0.2, 260, PAL.far, 12);
     // distant haze thickens on foggy stretches of road
     const dens = fogDensity(p.x + W / scale * 0.3);
@@ -416,15 +446,22 @@ export function createRenderer(app) {
     const x0 = (-world.position.x) / scale - 60;
     const x1 = x0 + W / scale + 120;
     drawGround(groundG, x0, x1);
-    fog.update(x0, x1, dt);
+    placeLampGlows();
+    fog.update(x0, x1, dt, P.fog);
 
     rider.position.set(p.x, groundY);
     rider.rotation = -p.boardAngle;   // physics: y up, screen: y down
     drawBoard(boardG, p.wheelSpin, sm.bump.v);
     drawBody(bodyG, p, t, Math.min(dt, 1 / 30));
+    riderBlur.strength = c.riderSoftness;
+    riderBlur.enabled = c.riderSoftness > 0.01;
 
     riderShadow.clear();
-    riderShadow.ellipse(p.x - 4, groundY + 1, 42, 4).fill({ color: PAL.shadow, alpha: 0.16 });
+    // soft contact shadow: stacked ellipses fading out
+    for (let i = 0; i < 4; i++) {
+      riderShadow.ellipse(p.x - 4, groundY + 1, 30 + i * 8, 2.5 + i * 1.2)
+        .fill({ color: PAL.shadow, alpha: PAL.shadowAlpha * 0.4 });
+    }
 
     drawForeground(fg, W, H, px, bgScale);
   }

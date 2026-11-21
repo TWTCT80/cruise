@@ -7,8 +7,8 @@ export const DEFAULTS = {
   rollResist: 14,         // constant rolling resistance (units/s²)
   airDrag: 0.00022,       // quadratic drag coefficient
   pushPower: 210,         // speed added by one kick at standstill
-  pushFalloff: 900,       // kick gets weaker towards this speed
-  pushDuration: 0.42,     // seconds per kick animation
+  pushFalloff: 1500,       // kick gets weaker towards this speed
+  pushDuration: 0.51,     // seconds per kick animation
   brakeDecel: 420,        // foot-brake deceleration
   brakeDelay: 0.18,       // hold left this long after a kick → foot brake
   maxSpeed: 1300,
@@ -29,12 +29,15 @@ export const DEFAULTS = {
   bodyLean: 0.9,          // how much the rider leans into acceleration
 
   // --- look ---
-  grain: 0.03,             // film grain / anti-banding dither strength
-  fogAmount: 1,            // ground fog thickness multiplier
+  mood: 0.5,               // 0 = golden (Journey) … 1 = dusk (INSIDE)
+  riderSoftness: 0.35,     // blur on the rider's edges
+  riderHaze: 0.1,          // how much the air tints the rider
+  grain: 0.12,             // film grain / anti-banding dither strength
+  fogAmount: 1.7,            // ground fog thickness multiplier
 
   // --- audio ---
   masterVolume: 0.8,
-  rollVolume: 0.55,
+  rollVolume: 0.54,
   musicVolume: 0.5,
   seamSpacing: 140,       // distance between sidewalk seams (clack)
 };
@@ -71,7 +74,7 @@ export const RANGES = {
   rollResist: [0, 80, 1],
   airDrag: [0, 0.001, 0.00001],
   pushPower: [50, 500, 5],
-  pushFalloff: [300, 1500, 10],
+  pushFalloff: [300, 3000, 10],
   pushDuration: [0.2, 0.8, 0.01],
   brakeDecel: [100, 1200, 10],
   brakeDelay: [0.05, 0.5, 0.01],
@@ -85,7 +88,10 @@ export const RANGES = {
   riderScreenX: [0.15, 0.5, 0.01],
   boardTiltSmooth: [2, 40, 1],
   bodyLean: [0, 2, 0.05],
-  grain: [0, 0.12, 0.005],
+  mood: [0, 1, 0.01],
+  riderSoftness: [0, 1.5, 0.05],
+  riderHaze: [0, 0.5, 0.01],
+  grain: [0, 0.25, 0.005],
   fogAmount: [0, 2.5, 0.05],
   masterVolume: [0, 1, 0.01],
   rollVolume: [0, 1, 0.01],
