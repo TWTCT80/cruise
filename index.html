@@ -94,10 +94,15 @@
       <button data-act="close">Stäng</button>
       <button data-act="copy">Kopiera ändringar</button>
       <button data-act="reset">Återställ</button>
+      <button data-act="reload">Uppdatera</button>
     </div>
     <div class="dev-stats"></div>
     <div class="dev-body"></div>
   </div>
   <script type="module" src="src/main.js"></script>
+  <script>
+    // network-first service worker so the phone always gets the newest build
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  </script>
 </body>
 </html>

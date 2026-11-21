@@ -77,6 +77,7 @@ export function createDevPanel(getStats) {
   }
 
   el.querySelector('[data-act=close]').onclick = () => toggle(false);
+  el.querySelector('[data-act=reload]').onclick = () => location.reload();
   el.querySelector('[data-act=reset]').onclick = () => {
     resetConfig();
     for (const k of Object.keys(inputs)) refreshRow(k);
