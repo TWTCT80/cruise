@@ -5,14 +5,16 @@
 //    leafy edge around a solid body, and flat foliage PADS (umbrella-pine)
 //  • few elements that FRAME the scene: a tree at the edge, a heavy bough
 //    from above — with calm stretches between
-//  • a continuous MEADOW along the bottom: grass, seed heads and simple
-//    round flowers on thin stems
+//  • a ROLLING LANDSCAPE along the bottom: two layers of smooth hills (the
+//    nearer one darkest) with only the odd soft grass tuft on the crests —
+//    calm, not spiky. Trees, bushes and the odd road sign stand ON the hills.
 //
 // Parallax > 1 so anything covering the rider passes quickly. Each element is
 // drawn once in white and tinted per frame.
 
 import { BlurFilter, Container, Graphics } from '../vendor/pixi.min.mjs';
 import { config } from './config.js';
+import { mix } from './palette.js';
 
 const CELL = 240;            // screen px per slot
 const PARALLAX = 1.45;
@@ -33,20 +35,16 @@ function seeded(i) {
 
 // --------------------------------------------------------- placement ----
 // Big elements are spaced out (never closer than 3 slots) so they frame
-// rather than clutter. Everything else in between is just meadow.
-const BIG = ['tree', 'tree', 'padTree', 'spruce'];
+// rather than clutter. Between them: just the rolling hills.
+const BIG = ['tree', 'tree', 'padTree', 'trunk'];
+const band = (r) => (r < 0.12 ? 'big' : r < 0.17 ? 'sign' : r < 0.27 ? 'bough' : r < 0.33 ? 'bush' : null);
 function kindFor(i) {
-  const r = hash(i);
-  if (r < 0.13) {
-    for (let k = 1; k <= 3; k++) if (hash(i - k) < 0.13) return null;  // keep big things apart
-    return BIG[Math.floor(hash(i + 31) * BIG.length)];
-  }
-  if (r < 0.24) {
-    for (let k = 1; k <= 2; k++) if (hash(i - k) >= 0.13 && hash(i - k) < 0.24) return null;
-    return 'bough';
-  }
-  if (r < 0.33) return 'bush';
-  return null;
+  const b = band(hash(i));
+  if (!b) return null;
+  const gap = b === 'big' ? 3 : 2;
+  for (let k = 1; k <= gap; k++) if (band(hash(i - k)) === b) return null;
+  if (b === 'big') return BIG[Math.floor(hash(i + 31) * BIG.length)];
+  return b;
 }
 
 // ------------------------------------------------------------ shapes ----
@@ -171,22 +169,39 @@ function build(kind, i, H) {
       pad(g, lean * 0.4, top + H * 0.08, H * 0.35, H * 0.1, rnd);
       break;
     }
-    case 'spruce': {
-      const h = H * (1.0 + 0.2 * rnd()), wMax = H * (0.22 + 0.08 * rnd());
-      g.rect(-H * 0.012, -h * 0.2, H * 0.024, h * 0.2 + 20).fill({ color: WHITE });
-      const tiers = 9;
-      for (let k = 0; k < tiers; k++) {
-        const t = k / tiers;
-        const y = -h * (0.12 + 0.88 * t);
-        const w = wMax * (1 - t) * (0.85 + 0.3 * rnd());
-        const th = h * 0.15;
-        g.moveTo(0, y - th)
-          .lineTo(w * 0.55, y - th * 0.35).lineTo(w * 0.45, y - th * 0.3).lineTo(w, y + th * 0.05)
-          .lineTo(w * 0.6, y).lineTo(-w * 0.6, y)
-          .lineTo(-w, y + th * 0.05).lineTo(-w * 0.45, y - th * 0.3).lineTo(-w * 0.55, y - th * 0.35)
-          .closePath().fill({ color: WHITE });
+    case 'trunk': {
+      // a bare trunk rising out of frame, a stub branch and a few leaves
+      const w = H * (0.06 + 0.03 * rnd());
+      const lean = (rnd() - 0.5) * H * 0.15;
+      const P = limb(g, 0, 20, lean * 0.3, top * 0.5, lean, top, w * 1.2, w * 0.75);
+      const [sx, sy] = P(0.55 + 0.2 * rnd());
+      const dir = rnd() < 0.5 ? -1 : 1;
+      limb(g, sx, sy, sx + dir * H * 0.05, sy - H * 0.04, sx + dir * H * 0.1, sy - H * 0.1, w * 0.35, w * 0.1);
+      for (let k = 0; k < 4; k++) leaf(g, sx + dir * H * 0.1, sy - H * 0.1, H * 0.03, -Math.PI / 2 + (rnd() - 0.5) * 2.4, 0.45);
+      // root flare
+      g.moveTo(-w * 1.3, 20).quadraticCurveTo(-w * 0.5, -H * 0.02, -w * 0.4, -H * 0.08)
+        .lineTo(w * 0.4, -H * 0.08).quadraticCurveTo(w * 0.5, -H * 0.02, w * 1.3, 20).closePath().fill({ color: WHITE });
+      break;
+    }
+    case 'sign': {
+      const t = Math.floor(rnd() * 3);
+      const h = H * (0.42 + 0.08 * rnd());
+      g.rect(-H * 0.007, -h, H * 0.014, h + 20).fill({ color: WHITE });
+      if (t === 0) {          // round sign with a ring and a bar
+        const r = H * 0.055;
+        g.circle(0, -h - r * 0.6, r).fill({ color: WHITE });
+        g.circle(0, -h - r * 0.6, r * 0.74).cut();
+        g.rect(-r * 0.55, -h - r * 0.75, r * 1.1, r * 0.3).fill({ color: WHITE });
+      } else if (t === 1) {   // warning triangle
+        const sz = H * 0.085;
+        g.moveTo(0, -h - sz).lineTo(sz * 0.62, -h + sz * 0.1).lineTo(-sz * 0.62, -h + sz * 0.1).closePath().fill({ color: WHITE });
+        g.moveTo(0, -h - sz * 0.7).lineTo(sz * 0.4, -h - sz * 0.05).lineTo(-sz * 0.4, -h - sz * 0.05).closePath().cut();
+        g.rect(-1.5, -h - sz * 0.5, 3, sz * 0.25).fill({ color: WHITE });
+      } else {                // street-name blades
+        g.roundRect(-H * 0.12, -h - H * 0.035, H * 0.22, H * 0.032, 3).fill({ color: WHITE });
+        g.roundRect(-H * 0.045, -h + H * 0.005, H * 0.14, H * 0.03, 3).fill({ color: WHITE });
+        g.circle(0, -h - H * 0.045, 3).fill({ color: WHITE });
       }
-      g.moveTo(0, -h * 1.03).lineTo(H * 0.02, -h * 0.9).lineTo(-H * 0.02, -h * 0.9).closePath().fill({ color: WHITE });
       break;
     }
     case 'bough': {
@@ -221,95 +236,92 @@ function build(kind, i, H) {
   return g;
 }
 
-// Meadow strip for one slot: grass, seed heads and round flowers. Height comes
-// from a world-space noise so neighbouring slots join seamlessly.
-function buildMeadow(i, H) {
-  const g = new Graphics();
-  const rnd = seeded(i * 13 + 77);
-  const hAt = (x) => H * (0.08 + 0.1 * noise1((i * CELL + x) / 420) + 0.035 * noise1((i * CELL + x) / 90));
-  g.moveTo(-2, 40);                                    // solid base, no gaps
-  for (let x = -2; x <= CELL + 2; x += 8) g.lineTo(x, -hAt(x) * 0.3);
-  g.lineTo(CELL + 2, 40).closePath().fill({ color: WHITE });
-  for (let x = 0; x < CELL; x += 2.6) {                // grass blades
-    const h = hAt(x) * (0.55 + 0.6 * rnd());
-    const lean = (rnd() - 0.5) * h * 0.5;
-    const w = 2.4 + rnd() * 1.8;
-    g.moveTo(x - w, 2).quadraticCurveTo(x + lean * 0.3, -h * 0.55, x + lean, -h)
-      .quadraticCurveTo(x + lean * 0.3 + 1, -h * 0.5, x + w, 2).closePath().fill({ color: WHITE });
-  }
-  for (let x = rnd() * 14; x < CELL; x += 10 + rnd() * 20) {   // flowers & seed heads
-    const h = hAt(x) * (1.1 + 0.6 * rnd());
-    const lean = (rnd() - 0.5) * 18;
-    const fx = x + lean, fy = -h;
-    g.moveTo(x, 2).quadraticCurveTo(x + lean * 0.2, -h * 0.5, fx, fy).stroke({ width: 1.6, color: WHITE });
-    const r = rnd();
-    if (r < 0.45) {
-      const pr = H * (0.009 + 0.006 * rnd());
-      for (let p = 0; p < 6; p++) g.circle(fx + Math.cos(p * 1.047) * pr, fy + Math.sin(p * 1.047) * pr, pr * 0.85).fill({ color: WHITE });
-      g.circle(fx, fy, pr * 0.9).fill({ color: WHITE });
-    } else if (r < 0.7) {
-      g.ellipse(fx, fy - 5, 2.6, 7).fill({ color: WHITE });
-    } else if (r < 0.85) {
-      leaf(g, fx, fy, H * 0.02, -Math.PI / 2 + (rnd() - 0.5), 0.4);
-      leaf(g, x + lean * 0.5, -h * 0.55, H * 0.018, -0.4 - rnd(), 0.4);
+// ------------------------------------------------------------- hills ----
+// Hill height (px above the bottom edge) at foreground coordinate X.
+function hillFront(X, H) {
+  return H * config.hills * (0.07 + 0.14 * noise1(X / 760) + 0.035 * noise1(X / 260 + 9));
+}
+function hillBack(X, H) {
+  return H * config.hills * (0.12 + 0.15 * noise1(X / 980 + 40) + 0.03 * noise1(X / 300 + 3));
+}
+
+function drawHills(g, W, H, off, heightFn, t, tufts) {
+  g.clear();
+  g.moveTo(-4, H + 4);
+  for (let sx = -4; sx <= W + 8; sx += 6) g.lineTo(sx, H - heightFn(off + sx, H));
+  g.lineTo(W + 8, H + 4).closePath().fill({ color: WHITE });
+  if (!tufts) return;
+  // only the odd soft tuft, sitting on the surface
+  const step = 170;
+  for (let X = Math.floor(off / step) * step; X < off + W + step; X += step) {
+    const k = Math.round(X / step);
+    if (hash(k + 400) > 0.4) continue;
+    const sx = X - off + hash(k + 401) * step;
+    const y = H - heightFn(off + sx, H) + 2;
+    const h = H * (0.025 + 0.025 * hash(k + 402));
+    const sway = Math.sin(t * 0.9 + k) * h * 0.15;
+    for (let b = 0; b < 6; b++) {
+      const bx = sx + (b - 2.5) * 3.2;
+      const lean = (b - 2.5) * h * 0.18 + sway;
+      g.moveTo(bx - 2.2, y).quadraticCurveTo(bx + lean * 0.3, y - h * 0.6, bx + lean, y - h * (0.7 + 0.35 * hash(k * 7 + b)))
+        .quadraticCurveTo(bx + lean * 0.3 + 1, y - h * 0.5, bx + 2.2, y).closePath().fill({ color: WHITE });
     }
   }
-  return g;
 }
 
 // ------------------------------------------------------------- layer ----
 export function createForeground(app) {
   const container = new Container();
-  const blur = new BlurFilter({ strength: 0.6, quality: 2 });
+  const blur = new BlurFilter({ strength: 1.6, quality: 2 });
   blur.resolution = app.renderer.resolution;
   container.filters = [blur];
+  const backHills = new Graphics();
   const bigLayer = new Container();
-  const meadowLayer = new Container();
-  container.addChild(bigLayer, meadowLayer);
+  const frontHills = new Graphics();
+  container.addChild(backHills, bigLayer, frontHills);
   const live = new Map();
-  const meadows = new Map();
   let builtFor = 0;
 
   function update(W, H, scroll, t, P) {
     if (Math.abs(builtFor - H) > 2) {
       for (const g of live.values()) g.destroy();
-      for (const g of meadows.values()) g.destroy();
-      live.clear(); meadows.clear();
+      live.clear();
       builtFor = H;
     }
     blur.strength = config.fgBlur;
     blur.enabled = config.fgBlur > 0.01;
     container.visible = config.foreground > 0.01;
-    meadowLayer.visible = config.meadow > 0.01;
 
+    // two hill layers: the far one moves slower and sits in a little haze
     const off = scroll * PARALLAX;
+    const offBack = scroll * 1.2;
+    drawHills(backHills, W, H, offBack, hillBack, t, false);
+    backHills.tint = mix(P.fg, P.fog, 0.32);
+    drawHills(frontHills, W, H, off, hillFront, t, true);
+    frontHills.tint = P.fg;
+    backHills.visible = frontHills.visible = config.hills > 0.01;
+
     const first = Math.floor(off / CELL) - 4;
     const last = Math.ceil((off + W) / CELL) + 4;
     for (const [i, g] of live) if (i < first || i > last) { g.destroy(); live.delete(i); }
-    for (const [i, g] of meadows) if (i < first || i > last) { g.destroy(); meadows.delete(i); }
 
-    const groundY = H * 1.02;
     for (let i = first; i <= last; i++) {
-      let m = meadows.get(i);
-      if (!m) { m = buildMeadow(i, H); meadows.set(i, m); meadowLayer.addChild(m); }
-      m.position.set(i * CELL - off, groundY);
-      m.scale.y = config.meadow;
-      m.tint = P.fg;
-      m.skew.x = Math.sin(t * 0.8 + i * 0.6) * 0.05;
-
       const kind = kindFor(i);
       if (!kind) continue;
-      if ((kind === 'tree' || kind === 'padTree' || kind === 'spruce') && config.foreground < 0.5) continue;
+      if (BIG.includes(kind) && config.foreground < 0.5) continue;
       let g = live.get(i);
       if (!g) {
         g = build(kind, i, H);
         g.flip = hash(i + 17) < 0.5 ? -1 : 1;
         live.set(i, g); bigLayer.addChild(g);
       }
-      g.position.set(i * CELL - off + hash(i + 3) * CELL * 0.5, kind === 'bough' ? 0 : groundY);
+      const x = i * CELL - off + hash(i + 3) * CELL * 0.5;
+      // ground elements stand on the front hills (sunk a little into them)
+      const y = kind === 'bough' ? 0 : H - hillFront(off + x, H) * 0.85 + H * 0.01;
+      g.position.set(x, y);
       g.scale.x = g.flip;
       g.tint = P.fg;
-      const sway = { bough: 0.02, bush: 0.015, tree: 0.006, padTree: 0.006, spruce: 0.004 }[kind] || 0;
+      const sway = { bough: 0.02, bush: 0.015, tree: 0.006, padTree: 0.006, trunk: 0.003 }[kind] || 0;
       g.skew.x = Math.sin(t * 0.7 + i * 1.7) * sway;
       if (kind === 'bough') g.rotation = Math.sin(t * 0.6 + i) * 0.012;
     }

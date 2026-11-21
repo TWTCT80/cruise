@@ -35,8 +35,8 @@ export const DEFAULTS = {
   grain: 0.075,             // film grain / anti-banding dither strength
   fogAmount: 1.95,
   foreground: 1,           // 0 = off, <0.5 = no trees, 1 = everything
-  fgBlur: 0.6,             // depth-of-field blur on foreground silhouettes
-  meadow: 1,               // height of the grass/flower strip (0 = off)            // ground fog thickness multiplier
+  fgBlur: 1.6,             // depth-of-field blur on foreground silhouettes
+  hills: 1,                // height of the rolling foreground hills (0 = off)            // ground fog thickness multiplier
 
   // --- outfit (HSL per garment; dev panel has presets) ---
   hoodieHue: 173, hoodieSat: 0.58, hoodieLight: 0.17,
@@ -106,7 +106,7 @@ export const RANGES = {
   fogAmount: [0, 2.5, 0.05],
   foreground: [0, 1, 0.05],
   fgBlur: [0, 4, 0.1],
-  meadow: [0, 2, 0.05],
+  hills: [0, 2.5, 0.05],
   masterVolume: [0, 1, 0.01],
   rollVolume: [0, 1, 0.01],
   musicVolume: [0, 1, 0.01],

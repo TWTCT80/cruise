@@ -100,13 +100,15 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
 - **Outfit (`src/outfit.js`):** färgton/mättnad/ljushet per plagg (tröja, byxor, mössa) i dev-panelen,
   med förval (Original, Svart, Svart/röd, Sand). Snören och skor alltid benvita. Kantljuset tar
   tröjans färg i dagsljus och blir varmt motljus i skymning – håller en svart outfit läsbar.
-- **Förgrund (`src/foreground.js`) – bara natur**, i stil med Toms referensbilder (silhuett-illustration):
-  stora enkla massor i stället för tunna detaljer – **lövklungor** (sluten kropp med lövkant) och
-  platta **lövkuddar** (skärmtall). Få element som **ramar in**: träd med 1–3 stammar, skärmtall,
-  gran, tunga grenar uppifrån, buskar – stora element alltid glest. **Sammanhängande äng** längs
-  nederkanten med gräs, fröax och runda blommor. Parallax 1,45, vajar i vinden, färg följer `mood`.
-  Reglage: `foreground` (<0,5 utan träd), `meadow` (ängens höjd), `fgBlur`.
-  (Stadsföremål provades 2026-11-21 och valdes bort.) Inför trick: bedöm om träden stör läsbarheten.
+- **Förgrund (`src/foreground.js`)**, i stil med Toms referensbilder (silhuett-illustration):
+  - **Böljande landskap** längs nederkanten i två lager (främre mörkast, parallax 1,45; bakre disigare,
+    1,2) med bara enstaka mjuka grästuvor på krönen – lugnt, inte spretigt. Reglage `hills`.
+  - Stora enkla massor: **lövklungor** och platta **lövkuddar** (skärmtall). Få element som ramar in:
+    lövträd med 1–3 stammar, skärmtall, kala trädstammar, tunga grenar uppifrån, buskar och någon
+    enstaka **vägskylt** – allt står *på* kullarna. Stora element alltid glest.
+  - Vajar i vinden, färg följer `mood`. Reglage: `foreground` (<0,5 utan träd), `fgBlur` (1,6).
+  - Provat och bortvalt 2026-11-21: stadsföremål överallt, spretig äng, granar.
+  - Inför trick: bedöm om träden stör läsbarheten.
 - Platt geometrisk vektorgrafik, mjuka gradienter, allt ritat i kod.
 - En ansiktslös figur (hoodie + mössa), kroppsspråket gör jobbet.
 - Ljud: procedurellt i prototypen, "inbäddat i bomull" (lågpass + kompressor på master);
