@@ -217,9 +217,9 @@ export function createRenderer(app) {
   const OLLIE_KEYS = [
     [0.00, { crouch: -6, arms: 0.30, fx: 15, bx: -20, gf: 0, gb: 0, hipX: -2, lean: 0.04 }], // 2. pop: legs extend, back foot on tail
     [0.12, { crouch: -9, arms: 0.40, fx: 18, bx: -23, gf: 0, gb: 0, hipX: 0, lean: 0.02 }],
-    [0.30, { crouch: 8, arms: 0.75, fx: 27, bx: -24, gf: 3, gb: 4, hipX: 2, lean: 0.03 }],  // 3. front foot drags to the nose
-    [0.50, { crouch: 19, arms: 0.92, fx: 26, bx: -27, gf: 9, gb: 10, hipX: 0, lean: 0.08 }], // 4. apex: frog squat, knees spread, feet float
-    [0.68, { crouch: 16, arms: 0.88, fx: 22, bx: -24, gf: 6, gb: 6, hipX: 0, lean: 0.06 }],
+    [0.30, { crouch: 7, arms: 0.75, fx: 22, bx: -20, gf: 3, gb: 4, hipX: 2, lean: 0.03 }],  // 3. front foot drags to the nose
+    [0.50, { crouch: 14, arms: 0.92, fx: 18, bx: -18, gf: 9, gb: 10, hipX: 0, lean: 0.08 }], // 4. apex: frog squat, knees spread, feet float
+    [0.68, { crouch: 12, arms: 0.88, fx: 17, bx: -18, gf: 6, gb: 6, hipX: 0, lean: 0.06 }],
     [0.88, { crouch: 1, arms: 0.6, fx: 16, bx: -18, gf: 0, gb: 0, hipX: 0, lean: 0.02 }],    // 5. legs reach down
     [1.00, { crouch: 3, arms: 0.45, fx: 15, bx: -17, gf: 0, gb: 0, hipX: 0, lean: 0.03 }],
   ];
