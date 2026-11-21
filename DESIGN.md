@@ -77,7 +77,17 @@ Greptejpen blinkar när den vänder upp = visuell catch-ledtråd. Alla värden i
 
 ## Stil
 
-- Platt geometrisk vektorgrafik, mjuka gradienter, pastell, allt ritat i kod.
+Förebild för *principerna* (inte looken): Journey. Vi lånar teknikerna, inte deras
+figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gyllene ljus.
+
+- **Nästan monokrom varm miljö** (sand/persika/guld) + **en mättad accent**: figurens
+  teal-färgade huvtröja (inte röd – för att inte likna Journeys mantel), korall mössa som sekundär.
+- **Luftperspektiv:** varje parallax-lager blandas mot `FOG` ju längre bort; dimband mellan lagren.
+- **Ljus:** solskiva med stor bloom, mjuka ljusstrålar (additiva), dammkorn som svävar i ljuset, drivande moln.
+- **Sekundär rörelse:** fjädrar för lutning/nedböjning/huvud (lätt överslag = mjukhet),
+  huvtröjans bakkant fladdrar i fartvinden, verlet-simulerade snören, studsande pompom och huva,
+  knäna fjädrar vid trottoarskarvar. Kod: `src/cloth.js`, `src/atmosphere.js`.
+- Platt geometrisk vektorgrafik, mjuka gradienter, allt ritat i kod.
 - En ansiktslös figur (hoodie + mössa), kroppsspråket gör jobbet.
 - Ljud: procedurellt/fria CC0-ljud + lo-fi-loop i prototypen; egna inspelade skateljud inför release.
 

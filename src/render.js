@@ -1,58 +1,51 @@
 // Vector rendering: everything is drawn in code each frame with Pixi Graphics.
-// Layers back→front: sky, sun, far ridge, mid hills, town, ground+props, rider, foreground.
+// Look: warm near-monochrome golden haze; distance dissolves into FOG; the
+// rider is the only saturated colour (teal hoodie). Secondary motion via
+// springs + verlet ropes (see cloth.js).
 
-import { Container, Graphics, Sprite, Texture } from '../vendor/pixi.min.mjs';
+import { Container, Graphics } from '../vendor/pixi.min.mjs';
 import { config } from './config.js';
 import { height } from './terrain.js';
+import { createAtmosphere, FOG, mix } from './atmosphere.js';
+import { spring, stepSpring, spring2, stepSpring2, rope, stepRope } from './cloth.js';
 
 const PAL = {
-  skyTop: '#6f8fc9',
-  skyMid: '#c9a6c8',
-  skyLow: '#f7c3a3',
-  horizon: '#ffe0b5',
-  sun: '#fff3d6',
-  far: 0xb89ab8,
-  mid: 0x9c7fa6,
-  town: 0x7a6390,
-  townWin: 0xffd79a,
-  groundTop: 0xe9d6cc,   // sidewalk
-  groundEdge: 0xfaf0e8,
-  ground: 0x5d4d70,      // below sidewalk
-  curb: 0xb79fa6,
-  road: 0x5a4a6c,
-  laneLine: 0xd9c3c4,
-  seam: 0xcdb6ad,
-  post: 0x4a3c5c,
-  lamp: 0xffe2a8,
-  fg: 0x2f2640,
-  // rider
-  hoodie: 0xff8a73,
-  hoodieDark: 0xe2705c,
-  pants: 0x3d4a6e,
-  pantsDark: 0x313c5a,
-  skin: 0xf1c7a5,
-  beanie: 0xf2c14e,
-  shoe: 0xf6f1e9,
-  deck: 0x2e2836,
-  deckSide: 0xd9774f,
+  far: mix(0xc99a78, FOG, 0.6),
+  mid: mix(0xb98668, FOG, 0.42),
+  town: mix(0x9f6e5c, FOG, 0.2),
+  townWin: 0xfff0c4,
+  groundTop: 0xf4e0c8,   // sidewalk
+  groundEdge: 0xfff5e8,
+  seam: 0xdcc0a4,
+  curb: 0xd3aa8e,
+  road: 0xb3876e,
+  laneLine: 0xf0d6bc,
+  post: 0x8a6352,
+  lamp: 0xfff2cc,
+  fg: 0x6b4a3c,
+  // rider — the only saturated colours in the frame
+  hoodie: 0x2a9d8f,
+  hoodieDark: 0x1f7a70,
+  hoodieLight: 0x48b8a9,
+  string: 0xf4efe6,
+  pants: 0x3d405b,
+  pantsDark: 0x2f3148,
+  skin: 0xc98a6a,
+  beanie: 0xe76f51,
+  beanieDark: 0xc9553b,
+  shoe: 0xf8f2ea,
+  deck: 0x3a2e39,
+  deckSide: 0xe76f51,
   wheel: 0xfbeedc,
-  truck: 0x9a93a6,
-  shadow: 0x2a2035,
+  truck: 0xa79a9e,
+  shadow: 0x7a4a34,
 };
-
-function canvasTexture(w, h, draw) {
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  draw(c.getContext('2d'), w, h);
-  return Texture.from(c);
-}
 
 function hash(n) {
   const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return s - Math.floor(s);
 }
 
-// Smooth 1D value noise for skylines.
 function noise1(x) {
   const i = Math.floor(x), f = x - i;
   const u = f * f * (3 - 2 * f);
@@ -61,34 +54,8 @@ function noise1(x) {
 
 export function createRenderer(app) {
   const stage = app.stage;
+  const atm = createAtmosphere();
 
-  const skyTex = canvasTexture(4, 512, (g, w, h) => {
-    const gr = g.createLinearGradient(0, 0, 0, h);
-    gr.addColorStop(0, PAL.skyTop);
-    gr.addColorStop(0.45, PAL.skyMid);
-    gr.addColorStop(0.78, PAL.skyLow);
-    gr.addColorStop(1, PAL.horizon);
-    g.fillStyle = gr; g.fillRect(0, 0, w, h);
-  });
-  const glowTex = canvasTexture(256, 256, (g, w) => {
-    const r = w / 2;
-    const gr = g.createRadialGradient(r, r, 0, r, r, r);
-    gr.addColorStop(0, 'rgba(255,246,220,1)');
-    gr.addColorStop(0.18, 'rgba(255,240,205,0.95)');
-    gr.addColorStop(0.22, 'rgba(255,225,180,0.45)');
-    gr.addColorStop(1, 'rgba(255,210,170,0)');
-    g.fillStyle = gr; g.fillRect(0, 0, w, w);
-  });
-  const vignetteTex = canvasTexture(256, 256, (g, w) => {
-    const r = w / 2;
-    const gr = g.createRadialGradient(r, r, r * 0.55, r, r, r * 1.05);
-    gr.addColorStop(0, 'rgba(40,20,50,0)');
-    gr.addColorStop(1, 'rgba(40,20,50,0.28)');
-    g.fillStyle = gr; g.fillRect(0, 0, w, w);
-  });
-
-  const sky = new Sprite(skyTex);
-  const sun = new Sprite(glowTex); sun.anchor.set(0.5);
   const far = new Graphics();
   const mid = new Graphics();
   const town = new Graphics();
@@ -99,13 +66,20 @@ export function createRenderer(app) {
   const boardG = new Graphics();
   const bodyG = new Graphics();
   const fg = new Graphics();
-  const vignette = new Sprite(vignetteTex);
 
   rider.addChild(boardG, bodyG);
   world.addChild(groundG, riderShadow, rider);
-  stage.addChild(sky, sun, far, mid, town, world, fg, vignette);
+  stage.addChild(atm.back, far, atm.haze[0], mid, atm.haze[1], town, atm.haze[2], world, fg, atm.front);
 
   const cam = { x: 0, y: 0, zoom: 1, init: false };
+
+  // --- secondary-motion state ---------------------------------------------
+  const sm = {
+    lean: spring(), crouch: spring(), swing: spring(),
+    bump: spring(), bodyBump: spring(),
+    head: null, hood: null, hem: null, pom: null,
+    strings: [rope(5, 3.6, 0, 0), rope(5, 3.6, 0, 0)],
+  };
 
   function drawRidge(g, W, H, camX, scale, factor, baseFrac, amp, freq, color, step = 10) {
     g.clear();
@@ -125,15 +99,15 @@ export function createRenderer(app) {
     g.clear();
     const off = camX * scale * factor;
     const cell = 120 * Math.max(scale, 0.5);
-    const base = H * 0.66;
+    const base = H * 0.68;
     const first = Math.floor(off / cell) - 1;
     for (let i = first; i < first + W / cell + 3; i++) {
       const r = hash(i);
-      if (r < 0.15) continue;                                // gaps
+      if (r < 0.15) continue;
       const x = i * cell - off;
       const w = cell * (0.55 + 0.4 * hash(i + 99));
       const h = H * (0.06 + 0.16 * hash(i + 7));
-      if (r > 0.82) {                                         // tree
+      if (r > 0.82) {
         const cx = x + w / 2, rad = w * 0.32;
         g.rect(cx - 2 * scale, base - h * 0.5, 4 * scale, h * 0.5).fill({ color: PAL.town });
         g.circle(cx, base - h * 0.55, rad).fill({ color: PAL.town });
@@ -142,17 +116,16 @@ export function createRenderer(app) {
         continue;
       }
       g.rect(x, base - h, w, h + H).fill({ color: PAL.town });
-      if (hash(i + 3) > 0.5) {                                // pitched roof
+      if (hash(i + 3) > 0.5) {
         g.moveTo(x - 2, base - h).lineTo(x + w / 2, base - h - w * 0.28).lineTo(x + w + 2, base - h)
           .closePath().fill({ color: PAL.town });
       }
-      // a few warm windows
       const ws = Math.max(4, 7 * scale);
       for (let k = 0; k < 4; k++) {
-        if (hash(i * 13 + k) > 0.55) {
+        if (hash(i * 13 + k) > 0.6) {
           const wx = x + w * (0.18 + 0.2 * k);
           const wy = base - h * (0.35 + 0.4 * hash(i * 7 + k));
-          if (wx + ws < x + w) g.rect(wx, wy, ws, ws * 1.3).fill({ color: PAL.townWin, alpha: 0.75 });
+          if (wx + ws < x + w) g.rect(wx, wy, ws, ws * 1.3).fill({ color: PAL.townWin, alpha: 0.5 });
         }
       }
     }
@@ -161,11 +134,6 @@ export function createRenderer(app) {
   function drawGround(g, x0, x1) {
     g.clear();
     const step = 14;
-    // body
-    g.moveTo(x0, 4000);
-    for (let x = x0; x <= x1 + step; x += step) g.lineTo(x, -height(x));
-    g.lineTo(x1 + step, 4000).closePath().fill({ color: PAL.ground });
-    // curb face + road surface with dashed centre line
     const band = (top, bot, color) => {
       g.moveTo(x0, -height(x0) + top);
       for (let x = x0; x <= x1 + step; x += step) g.lineTo(x, -height(x) + top);
@@ -179,43 +147,34 @@ export function createRenderer(app) {
       g.moveTo(x, -height(x) + 150).lineTo(x + 80, -height(x + 80) + 150)
         .stroke({ width: 6, color: PAL.laneLine, cap: 'round' });
     }
-    // sidewalk slab (a band following the surface)
-    g.moveTo(x0, -height(x0));
-    for (let x = x0; x <= x1 + step; x += step) g.lineTo(x, -height(x));
-    for (let x = x1 + step; x >= x0; x -= step) g.lineTo(x, -height(x) + 34);
-    g.closePath().fill({ color: PAL.groundTop });
-    // bright top edge
+    band(0, 34, PAL.groundTop);
     g.moveTo(x0, -height(x0));
     for (let x = x0; x <= x1 + step; x += step) g.lineTo(x, -height(x));
     g.stroke({ width: 3, color: PAL.groundEdge });
-    // seams — these are what the "clack" sound syncs to
     const sp = config.seamSpacing;
     for (let x = Math.ceil(x0 / sp) * sp; x <= x1; x += sp) {
       const y = -height(x);
       g.moveTo(x, y + 2).lineTo(x - 6, y + 34).stroke({ width: 2, color: PAL.seam });
     }
-    // street lamps
     const ps = 1150;
     for (let x = Math.ceil((x0 - 100) / ps) * ps + 400; x <= x1 + 100; x += ps) {
       const y = -height(x) + 4;
       g.roundRect(x - 4, y - 300, 8, 300, 4).fill({ color: PAL.post });
       g.moveTo(x, y - 296).quadraticCurveTo(x + 4, y - 330, x + 40, y - 326).stroke({ width: 7, color: PAL.post, cap: 'round' });
-      g.circle(x + 44, y - 318, 26).fill({ color: PAL.lamp, alpha: 0.18 });
+      g.circle(x + 44, y - 318, 30).fill({ color: PAL.lamp, alpha: 0.22 });
       g.circle(x + 44, y - 320, 9).fill({ color: PAL.lamp });
     }
   }
 
   function drawForeground(g, W, H, camX, scale) {
     g.clear();
-    const factor = 1.35;
-    const off = camX * scale * factor;
+    const off = camX * scale * 1.35;
     const cell = 520 * scale;
     const first = Math.floor(off / cell) - 1;
     for (let i = first; i < first + W / cell + 3; i++) {
       if (hash(i + 500) < 0.5) continue;
       const x = i * cell - off + hash(i) * cell * 0.5;
       const s = (40 + 50 * hash(i + 1)) * scale;
-      // soft bush silhouette at the bottom edge
       g.circle(x, H + s * 0.35, s).fill({ color: PAL.fg });
       g.circle(x + s * 0.8, H + s * 0.5, s * 0.8).fill({ color: PAL.fg });
       g.circle(x - s * 0.7, H + s * 0.55, s * 0.7).fill({ color: PAL.fg });
@@ -223,11 +182,10 @@ export function createRenderer(app) {
   }
 
   // --- rider -------------------------------------------------------------
-  const DECK_Y = -15;          // deck top in board space
+  const DECK_Y = -15;
   const THIGH = 32, SHIN = 32;
 
-  function leg(g, hip, foot, color, dir = 1) {
-    // two-bone IK, knee bends towards +x (forward) * dir
+  function leg(g, hip, foot, color) {
     const dx = foot.x - hip.x, dy = foot.y - hip.y;
     let d = Math.hypot(dx, dy);
     const maxD = THIGH + SHIN - 0.01;
@@ -235,12 +193,11 @@ export function createRenderer(app) {
     const a = Math.atan2(dy, dx);
     const cosK = (THIGH * THIGH + d * d - SHIN * SHIN) / (2 * THIGH * d);
     const k = Math.acos(Math.max(-1, Math.min(1, cosK)));
-    const ang = a - k * dir;
+    const ang = a - k;
     const knee = { x: hip.x + Math.cos(ang) * THIGH, y: hip.y + Math.sin(ang) * THIGH };
     const fx = hip.x + Math.cos(a) * d, fy = hip.y + Math.sin(a) * d;
     g.moveTo(hip.x, hip.y).lineTo(knee.x, knee.y).lineTo(fx, fy)
       .stroke({ width: 11, color, cap: 'round', join: 'round' });
-    // shoe
     g.roundRect(fx - 7, fy - 4, 17, 7, 3.5).fill({ color: PAL.shoe });
   }
 
@@ -249,57 +206,67 @@ export function createRenderer(app) {
     const el = { x: sh.x + Math.sin(angUpper) * L, y: sh.y + Math.cos(angUpper) * L };
     const ha = { x: el.x + Math.sin(angLower) * L, y: el.y + Math.cos(angLower) * L };
     g.moveTo(sh.x, sh.y).lineTo(el.x, el.y).lineTo(ha.x, ha.y)
-      .stroke({ width: 9, color, cap: 'round', join: 'round' });
+      .stroke({ width: 10, color, cap: 'round', join: 'round' });
     g.circle(ha.x, ha.y, 4.5).fill({ color: PAL.skin });
   }
 
-  function drawBoard(g, spin) {
+  function drawBoard(g, spin, bump) {
     g.clear();
-    // wheels
     for (const wx of [-22, 22]) {
       g.rect(wx - 6, -12, 12, 4).fill({ color: PAL.truck });
       g.circle(wx, -5.5, 5.5).fill({ color: PAL.wheel });
       const sx = Math.cos(spin) * 3, sy = Math.sin(spin) * 3;
       g.moveTo(wx - sx, -5.5 - sy).lineTo(wx + sx, -5.5 + sy).stroke({ width: 1.2, color: 0xd8c8b4 });
     }
-    // deck with kicked nose & tail
-    g.moveTo(-30, DECK_Y + 2)
-      .lineTo(30, DECK_Y + 2)
-      .quadraticCurveTo(38, DECK_Y + 2, 42, DECK_Y - 4)
-      .lineTo(40, DECK_Y - 5)
-      .quadraticCurveTo(36, DECK_Y - 1, 30, DECK_Y - 1)
-      .lineTo(-30, DECK_Y - 1)
-      .quadraticCurveTo(-36, DECK_Y - 1, -40, DECK_Y - 5)
-      .lineTo(-42, DECK_Y - 4)
-      .quadraticCurveTo(-38, DECK_Y + 2, -30, DECK_Y + 2)
+    const y = DECK_Y + bump;
+    g.moveTo(-30, y + 2)
+      .lineTo(30, y + 2)
+      .quadraticCurveTo(38, y + 2, 42, y - 4)
+      .lineTo(40, y - 5)
+      .quadraticCurveTo(36, y - 1, 30, y - 1)
+      .lineTo(-30, y - 1)
+      .quadraticCurveTo(-36, y - 1, -40, y - 5)
+      .lineTo(-42, y - 4)
+      .quadraticCurveTo(-38, y + 2, -30, y + 2)
       .closePath().fill({ color: PAL.deck });
-    g.rect(-30, DECK_Y + 1, 60, 1.5).fill({ color: PAL.deckSide });
+    g.rect(-30, y + 1, 60, 1.5).fill({ color: PAL.deckSide });
   }
 
-  function drawBody(g, p, t) {
+  function drawBody(g, p, t, dt) {
     g.clear();
     const push = p.pushing ? p.pushT : -1;
     const brake = p.brakeAmount;
     const breathe = Math.sin(t * 2.1) * 1.2;
 
-    // hip height & lean
-    let crouch = 0;
-    let lean = Math.max(-0.25, Math.min(0.25, p.accel * 0.00035 * config.bodyLean));
+    // External forces in the rider's local frame.
+    const G = 900;
+    const gx = G * Math.sin(p.boardAngle), gy = G * Math.cos(p.boardAngle);
+    const wind = -p.speed;                     // head-wind
+    const inertia = -p.accel * 0.6;
+    const flutter = (f, ph) => Math.sin(t * f + ph) * (0.25 + Math.min(1, p.speed / 700)) ;
+
+    // Targets → springs (overshoot gives the soft, follow-through feel).
+    let crouchT = 0;
+    let leanT = Math.max(-0.25, Math.min(0.25, p.accel * 0.00035 * config.bodyLean));
     if (push >= 0) {
       const s = Math.sin(Math.PI * push);
-      crouch += 9 * s;
-      lean += 0.22 * s;
+      crouchT += 9 * s;
+      leanT += 0.22 * s;
     }
-    crouch += 24 * brake;
-    lean += 0.06 * brake;
+    crouchT += 24 * brake;
+    leanT += 0.06 * brake;
+    const lean = stepSpring(sm.lean, leanT, dt, 140, 14);
+    const crouch = stepSpring(sm.crouch, crouchT, dt, 170, 16);
 
-    const hip = { x: 2 + lean * 10 - 6 * brake, y: DECK_Y - 54 + crouch + breathe * 0.4 };
+    // Seam bumps: board jolts, knees absorb with a softer lagging spring.
+    const bump = stepSpring(sm.bump, 0, dt, 900, 28);
+    const bodyBump = stepSpring(sm.bodyBump, bump, dt, 220, 15);
 
-    // feet
-    const front = { x: 15, y: DECK_Y - 3 };
-    let back = { x: -17, y: DECK_Y - 3 };
+    const hip = { x: 2 + lean * 10 - 6 * brake, y: DECK_Y - 54 + crouch + breathe * 0.4 + bodyBump };
+
+    const front = { x: 15, y: DECK_Y - 3 + bump };
+    let back = { x: -17, y: DECK_Y - 3 + bump };
     if (push >= 0) {
-      // foot path: lift, plant ahead-ish, sweep back along ground, return
       const ground = 2;
       if (push < 0.3) {
         const u = push / 0.3;
@@ -318,31 +285,72 @@ export function createRenderer(app) {
 
     const shoulder = { x: hip.x + Math.sin(lean) * 40 + 3, y: hip.y - Math.cos(lean) * 40 };
 
-    // back arm (behind body)
-    const swing = push >= 0 ? Math.sin(Math.PI * 2 * push) * 0.6 : Math.sin(t * 1.3) * 0.05;
+    // head lags behind the shoulders a touch
+    const headT = { x: shoulder.x + 3 + lean * 4, y: shoulder.y - 15 };
+    if (!sm.head) {
+      sm.head = spring2(headT.x, headT.y);
+      sm.hood = spring2(shoulder.x - 7, shoulder.y + 1);
+      sm.hem = spring2(hip.x - 10, hip.y + 9);
+      sm.pom = spring2(headT.x - 6, headT.y - 22);
+    }
+    stepSpring2(sm.head, headT.x, headT.y, inertia * 0.02, 0, dt, 320, 22);
+    const head = sm.head;
+
+    // hood bounces on its own
+    stepSpring2(sm.hood, shoulder.x - 7, shoulder.y + 1, wind * 0.05 + inertia * 0.05, 0, dt, 140, 9);
+    // back hem of the hoodie flares in the head-wind and flutters
+    const hemFx = wind * 1.5 + inertia * 0.5 + flutter(11, 0) * 260;
+    const hemFy = -p.speed * 0.45 + flutter(13, 1.7) * 140;
+    stepSpring2(sm.hem, hip.x - 10, hip.y + 9, hemFx, hemFy, dt, 150, 10);
+    // pompom on a springy beanie tip
+    stepSpring2(sm.pom, head.x - 5, head.y - 21, wind * 0.55 + inertia * 0.5 + gx * 0.1, gy * 0.12, dt, 90, 6);
+
+    // drawstrings
+    for (let i = 0; i < 2; i++) {
+      const ax = shoulder.x + 6 + i * 3, ay = shoulder.y + 7;
+      stepRope(sm.strings[i], ax, ay, gx + wind * 1.1 + inertia + flutter(17 + i * 3, i) * 220, gy, Math.min(dt, 1 / 30));
+    }
+
+    const swingT = push >= 0 ? Math.sin(Math.PI * 2 * push) * 0.6 : Math.sin(t * 1.3) * 0.05;
+    const swing = stepSpring(sm.swing, swingT, dt, 90, 9);
+
+    // back arm
     arm(g, shoulder, 0.35 + swing - brake * 0.6, 0.1 + swing * 0.5, PAL.hoodieDark);
     // back leg
     leg(g, hip, back, PAL.pantsDark);
-    // torso (hoodie)
-    g.moveTo(hip.x - 8, hip.y + 4)
-      .lineTo(shoulder.x - 8, shoulder.y + 2)
+    // torso: hoodie with a free-moving back hem
+    const hem = sm.hem;
+    g.moveTo(hem.x, hem.y)
+      .quadraticCurveTo(hip.x - 11, hip.y - 12, shoulder.x - 9, shoulder.y + 2)
       .quadraticCurveTo(shoulder.x, shoulder.y - 6, shoulder.x + 9, shoulder.y + 3)
-      .lineTo(hip.x + 9, hip.y + 4)
+      .lineTo(hip.x + 10, hip.y + 8)
+      .quadraticCurveTo((hip.x + hem.x) / 2, hip.y + 11 + (hem.y - hip.y - 9) * 0.5, hem.x, hem.y)
       .closePath().fill({ color: PAL.hoodie });
-    // hood bump
-    g.circle(shoulder.x - 6, shoulder.y + 1, 6).fill({ color: PAL.hoodieDark });
+    // sun-side rim light along the front of the torso
+    g.moveTo(shoulder.x + 9, shoulder.y + 4).lineTo(hip.x + 10, hip.y + 6)
+      .stroke({ width: 2.2, color: PAL.hoodieLight, cap: 'round', alpha: 0.9 });
+    // hood
+    g.ellipse(sm.hood.x + 1, sm.hood.y - 1, 8, 6).fill({ color: PAL.hoodieDark });
     // front leg
     leg(g, hip, front, PAL.pants);
-    // head
-    const head = { x: shoulder.x + 3 + lean * 4, y: shoulder.y - 15 };
-    g.rect(head.x - 3, head.y + 6, 6, 6).fill({ color: PAL.skin });
+    // drawstrings
+    for (const r of sm.strings) {
+      const pts = r.pts;
+      g.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+      g.stroke({ width: 1.6, color: PAL.string, cap: 'round', join: 'round' });
+    }
+    // neck + head
+    g.moveTo(shoulder.x + 1, shoulder.y + 2).lineTo(head.x, head.y + 8).stroke({ width: 7, color: PAL.skin, cap: 'round' });
     g.circle(head.x, head.y, 11).fill({ color: PAL.skin });
-    // beanie
+    // beanie + pompom
     g.moveTo(head.x - 12, head.y - 1)
       .quadraticCurveTo(head.x - 11, head.y - 17, head.x + 1, head.y - 17)
       .quadraticCurveTo(head.x + 12, head.y - 16, head.x + 12, head.y - 2)
       .closePath().fill({ color: PAL.beanie });
-    g.roundRect(head.x - 13, head.y - 4, 26, 5, 2.5).fill({ color: 0xe0ab38 });
+    g.roundRect(head.x - 13, head.y - 4, 26, 5, 2.5).fill({ color: PAL.beanieDark });
+    g.moveTo(head.x - 4, head.y - 16).lineTo(sm.pom.x, sm.pom.y).stroke({ width: 3, color: PAL.beanie, cap: 'round' });
+    g.circle(sm.pom.x, sm.pom.y, 4.2).fill({ color: PAL.beanie });
     // front arm
     arm(g, shoulder, -0.25 - swing * 0.8 + brake * 0.5, 0.35 - swing * 0.4, PAL.hoodie);
   }
@@ -368,13 +376,13 @@ export function createRenderer(app) {
     world.scale.set(scale);
     world.position.set(W * c.riderScreenX - p.x * scale - lookOffset, H * 0.7 - cam.y * scale);
 
-    sky.width = W; sky.height = H;
-    sun.position.set(W * 0.72, H * 0.34);
-    sun.scale.set(H / 380);
-    drawRidge(far, W, H, cam.x, scale, 0.06, 0.62, 0.18, 260, PAL.far, 12);
-    drawRidge(mid, W, H, cam.x, scale, 0.16, 0.7, 0.13, 150, PAL.mid, 10);
+    atm.update(W, H, cam.x, scale, t);
+    drawRidge(far, W, H, cam.x, scale, 0.06, 0.6, 0.2, 260, PAL.far, 12);
+    atm.placeHaze(0, W, H, 0.62, 0.22, 0.85);
+    drawRidge(mid, W, H, cam.x, scale, 0.16, 0.69, 0.13, 150, PAL.mid, 10);
+    atm.placeHaze(1, W, H, 0.69, 0.16, 0.7);
     drawTown(town, W, H, cam.x, scale, 0.38);
-    town.position.y = H * 0.02;
+    atm.placeHaze(2, W, H, 0.7, 0.1, 0.55);
 
     const x0 = (-world.position.x) / scale - 60;
     const x1 = x0 + W / scale + 120;
@@ -382,15 +390,19 @@ export function createRenderer(app) {
 
     rider.position.set(p.x, groundY);
     rider.rotation = p.boardAngle;
-    drawBoard(boardG, p.wheelSpin);
-    drawBody(bodyG, p, t);
+    drawBoard(boardG, p.wheelSpin, sm.bump.v);
+    drawBody(bodyG, p, t, Math.min(dt, 1 / 30));
 
     riderShadow.clear();
-    riderShadow.ellipse(p.x, groundY + 1, 40, 4).fill({ color: PAL.shadow, alpha: 0.2 });
+    riderShadow.ellipse(p.x - 4, groundY + 1, 42, 4).fill({ color: PAL.shadow, alpha: 0.16 });
 
     drawForeground(fg, W, H, cam.x, scale);
-    vignette.width = W; vignette.height = H;
   }
 
-  return { render };
+  // Called when the wheels cross a sidewalk seam.
+  function bump(speed) {
+    sm.bump.vel += 22 + Math.min(1, speed / 900) * 40;
+  }
+
+  return { render, bump };
 }

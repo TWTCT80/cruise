@@ -11,7 +11,7 @@ const app = new Application();
 await app.init({
   resizeTo: window,
   antialias: true,
-  background: '#f7c3a3',
+  background: '#f6d4b4',
   resolution: Math.min(window.devicePixelRatio || 1, 2),
   autoDensity: true,
 });
@@ -108,7 +108,7 @@ app.ticker.add((ticker) => {
   time += dt;
 
   const seam = Math.floor(player.x / config.seamSpacing);
-  if (seam !== lastSeam) { seamClack(player.speed); lastSeam = seam; }
+  if (seam !== lastSeam) { seamClack(player.speed); renderer.bump(player.speed); lastSeam = seam; }
 
   hints.tick();
   updateAudio(player);
