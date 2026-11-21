@@ -456,7 +456,7 @@ export function createRenderer(app) {
         .fill({ color: PAL.shadow, alpha: PAL.shadowAlpha * 0.4 });
     }
 
-    fgLayer.update(W, H, cam.scroll, t, PAL.fg);
+    fgLayer.update(W, H, cam.scroll, t, PAL);
   }
 
   // Called when the wheels cross a sidewalk seam.

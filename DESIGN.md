@@ -100,11 +100,18 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
 - **Outfit (`src/outfit.js`):** färgton/mättnad/ljushet per plagg (tröja, byxor, mössa) i dev-panelen,
   med förval (Original, Svart, Svart/röd, Sand). Snören och skor alltid benvita. Kantljuset tar
   tröjans färg i dagsljus och blir varmt motljus i skymning – håller en svart outfit läsbar.
-- **Förgrund (`src/foreground.js`):** mörka, lätt suddiga siluetter mellan kamera och gubbe – buskar,
-  gräs, grenar uppifrån, stolpar/staket och ibland ett träd i full höjd som man åker bakom.
-  Parallax 1,45 (rör sig fortare än gatan) så skymning blir kort; vajar i vinden; färg följer `mood`.
-  Reglage: `foreground` (0 av, <0,5 utan träd), `fgBlur`. Inför trick (M2–3): bedöm om träd i full
-  höjd stör läsbarheten – i så fall glesa ut dem eller tona ner när de passerar gubben.
+- **Förgrund (`src/foreground.js`):** mörka, lätt suddiga siluetter mellan kamera och gubbe,
+  parallax 1,45 (skymning blir kort), vajar i vinden, färg följer `mood`. Mot enformighet:
+  - **Zoner** som glider fram längs vägen: *park* (träd, buskar, ormbunkar, blommor, vass, bänkar),
+    *gata* (vägskyltar, gatunamn, busskur, cykelställ, pollare, elskåp, trafikljus, elsparkcykel,
+    brandpost, krukor, elledningar, ljusslingor, hängande butiksskyltar), *villa* (brevlådor,
+    häckar, staket/räcken, buskar, ljusslingor).
+  - Aldrig samma föremål två gånger i rad; tomma platser ger andrum; storlek och spegling varierar.
+  - **Procedurella grenar** i 6 stilar: ek, hängbjörk, gran, lönn, kal, murgröna. Träd: björk
+    (med näverränder), ek, tall.
+  - Ljusslingor, trafikljus och hängande lampor glöder (starkare i skymning).
+  - Reglage: `foreground` (0 av, <0,5 utan träd), `fgBlur`. Inför trick (M2–3): bedöm om träd
+    i full höjd stör läsbarheten – i så fall glesa ut eller tona ner när de passerar gubben.
 - Platt geometrisk vektorgrafik, mjuka gradienter, allt ritat i kod.
 - En ansiktslös figur (hoodie + mössa), kroppsspråket gör jobbet.
 - Ljud: procedurellt i prototypen, "inbäddat i bomull" (lågpass + kompressor på master);
