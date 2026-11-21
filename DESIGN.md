@@ -100,6 +100,11 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
 - **Outfit (`src/outfit.js`):** färgton/mättnad/ljushet per plagg (tröja, byxor, mössa) i dev-panelen,
   med förval (Original, Svart, Svart/röd, Sand). Snören och skor alltid benvita. Kantljuset tar
   tröjans färg i dagsljus och blir varmt motljus i skymning – håller en svart outfit läsbar.
+- **Förgrund (`src/foreground.js`):** mörka, lätt suddiga siluetter mellan kamera och gubbe – buskar,
+  gräs, grenar uppifrån, stolpar/staket och ibland ett träd i full höjd som man åker bakom.
+  Parallax 1,45 (rör sig fortare än gatan) så skymning blir kort; vajar i vinden; färg följer `mood`.
+  Reglage: `foreground` (0 av, <0,5 utan träd), `fgBlur`. Inför trick (M2–3): bedöm om träd i full
+  höjd stör läsbarheten – i så fall glesa ut dem eller tona ner när de passerar gubben.
 - Platt geometrisk vektorgrafik, mjuka gradienter, allt ritat i kod.
 - En ansiktslös figur (hoodie + mössa), kroppsspråket gör jobbet.
 - Ljud: procedurellt i prototypen, "inbäddat i bomull" (lågpass + kompressor på master);

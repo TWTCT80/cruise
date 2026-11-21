@@ -9,6 +9,7 @@ import { height } from './terrain.js';
 import { createAtmosphere } from './atmosphere.js';
 import { palette, mix } from './palette.js';
 import { outfitColors, outfitKey } from './outfit.js';
+import { createForeground } from './foreground.js';
 import { spring, stepSpring, spring2, stepSpring2, rope, stepRope } from './cloth.js';
 import { createFog, fogDensity } from './fog.js';
 import { musicPhase } from './music.js';
@@ -70,7 +71,7 @@ export function createRenderer(app) {
   const rider = new Container();
   const boardG = new Graphics();
   const bodyG = new Graphics();
-  const fg = new Graphics();
+  const fgLayer = createForeground(app);
 
   rider.addChild(boardG, bodyG);
   // soften the rider's vector edges to match the soft world
@@ -92,7 +93,7 @@ export function createRenderer(app) {
     return Texture.from(c);
   })();
   world.addChild(groundG, lampGlows, fog.back, riderShadow, rider, fog.front);
-  stage.addChild(atm.back, far, atm.haze[0], mid, atm.haze[1], town, atm.haze[2], world, fg, atm.front);
+  stage.addChild(atm.back, far, atm.haze[0], mid, atm.haze[1], town, atm.haze[2], world, fgLayer.container, atm.front);
 
   const cam = { look: 0, y: 0, zoom: 1, init: false, scroll: 0, lastX: null };
 
@@ -205,21 +206,6 @@ export function createRenderer(app) {
       s.alpha = PAL.lampGlow * 1.6;
     }
     for (; i < lampGlows.children.length; i++) lampGlows.children[i].visible = false;
-  }
-
-  function drawForeground(g, W, H, camX, scale) {
-    g.clear();
-    const off = camX * scale * 1.35;
-    const cell = 520 * scale;
-    const first = Math.floor(off / cell) - 1;
-    for (let i = first; i < first + W / cell + 3; i++) {
-      if (hash(i + 500) < 0.5) continue;
-      const x = i * cell - off + hash(i) * cell * 0.5;
-      const s = (40 + 50 * hash(i + 1)) * scale;
-      g.circle(x, H + s * 0.35, s).fill({ color: PAL.fg });
-      g.circle(x + s * 0.8, H + s * 0.5, s * 0.8).fill({ color: PAL.fg });
-      g.circle(x - s * 0.7, H + s * 0.55, s * 0.7).fill({ color: PAL.fg });
-    }
   }
 
   // --- rider -------------------------------------------------------------
@@ -470,7 +456,7 @@ export function createRenderer(app) {
         .fill({ color: PAL.shadow, alpha: PAL.shadowAlpha * 0.4 });
     }
 
-    drawForeground(fg, W, H, px, bgScale);
+    fgLayer.update(W, H, cam.scroll, t, PAL.fg);
   }
 
   // Called when the wheels cross a sidewalk seam.

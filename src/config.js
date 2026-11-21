@@ -33,12 +33,14 @@ export const DEFAULTS = {
   riderSoftness: 0.35,     // blur on the rider's edges
   riderHaze: 0.1,          // how much the air tints the rider
   grain: 0.075,             // film grain / anti-banding dither strength
-  fogAmount: 1.95,            // ground fog thickness multiplier
+  fogAmount: 1.95,
+  foreground: 1,           // 0 = off, <0.5 = no trees, 1 = everything
+  fgBlur: 1.2,             // depth-of-field blur on foreground silhouettes            // ground fog thickness multiplier
 
   // --- outfit (HSL per garment; dev panel has presets) ---
-  hoodieHue: 173, hoodieSat: 0.58, hoodieLight: 0.39,
-  pantsHue: 234, pantsSat: 0.2, pantsLight: 0.3,
-  beanieHue: 12, beanieSat: 0.76, beanieLight: 0.61,
+  hoodieHue: 173, hoodieSat: 0.58, hoodieLight: 0.17,
+  pantsHue: 234, pantsSat: 0.2, pantsLight: 0.14,
+  beanieHue: 12, beanieSat: 0.88, beanieLight: 0.23,
 
   // --- audio ---
   masterVolume: 0.8,
@@ -101,6 +103,8 @@ export const RANGES = {
   riderHaze: [0, 0.5, 0.01],
   grain: [0, 0.25, 0.005],
   fogAmount: [0, 2.5, 0.05],
+  foreground: [0, 1, 0.05],
+  fgBlur: [0, 4, 0.1],
   masterVolume: [0, 1, 0.01],
   rollVolume: [0, 1, 0.01],
   musicVolume: [0, 1, 0.01],
