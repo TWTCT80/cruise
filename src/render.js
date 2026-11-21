@@ -99,7 +99,8 @@ export function createRenderer(app) {
 
   // --- secondary-motion state ---------------------------------------------
   const sm = {
-    lean: spring(), crouch: spring(), swing: spring(),
+    lean: spring(), crouch: spring(), swing: spring(), arms: spring(),
+    pitch: spring(), wobble: spring(), punch: spring(),
     bump: spring(), bodyBump: spring(),
     head: null, hood: null, hem: null, pom: null,
     strings: [rope(5, 3.6, 0, 0), rope(5, 3.6, 0, 0)],
@@ -210,6 +211,20 @@ export function createRenderer(app) {
 
   // --- rider -------------------------------------------------------------
   const DECK_Y = -15;
+  const PIVOT_Y = -9;          // board pitches around this point (deck centre)
+
+  // Board pitch during an ollie (radians, negative = nose up):
+  // tail strike → nose high, front foot drags it level, slight nose-down
+  // before the wheels meet the ground, then flat.
+  function pitchTarget(p) {
+    if (!p.airborne) return 0;
+    const u = Math.min(1, p.airT / p.airDur);
+    if (u < 0.1) return -0.55 * (u / 0.1);
+    if (u < 0.38) return -0.55 * (1 - (u - 0.1) / 0.28);
+    if (u < 0.78) return 0;
+    if (u < 0.92) return 0.07;
+    return 0;
+  }
   const THIGH = 32, SHIN = 32;
 
   function leg(g, hip, foot, color) {
@@ -286,6 +301,20 @@ export function createRenderer(app) {
     }
     crouchT += 24 * brake;
     leanT += 0.06 * brake;
+
+    // --- ollie poses (follows the six phases of a real ollie) ---
+    let armT = 0;                                   // 0 relaxed · 0.6 out · 1 up
+    crouchT += 20 * p.crouchAmt;                    // 1. wind up: crouch low
+    leanT += 0.06 * p.crouchAmt;
+    armT += 0.3 * p.crouchAmt;
+    if (p.airborne) {
+      const u = Math.min(1, p.airT / p.airDur);
+      if (u < 0.13) { crouchT = -5; armT = 1; }     // 2–3. snap: legs extend, arms fly up
+      else if (u < 0.68) { crouchT = 23; armT = 0.65; } // 4. tuck at the apex, arms out
+      else { crouchT = 9; armT = 0.5; }             // 5. legs reach for the ground
+      leanT += 0.05;
+    }
+    const arms = stepSpring(sm.arms, armT, dt, 120, 13);
     // stay more upright than the board on slopes, like a real rider
     leanT -= (-p.boardAngle) * 0.6;
     const lean = stepSpring(sm.lean, leanT, dt, 140, 14);
@@ -297,8 +326,12 @@ export function createRenderer(app) {
 
     const hip = { x: 2 + lean * 10 - 6 * brake, y: DECK_Y - 54 + crouch + breathe * 0.4 + bodyBump };
 
-    const front = { x: 15, y: DECK_Y - 3 + bump };
-    let back = { x: -17, y: DECK_Y - 3 + bump };
+    // feet sit on the deck, which pitches around its centre during an ollie
+    const pc = Math.cos(sm.pitch.v), ps = Math.sin(sm.pitch.v);
+    const liftOff = Math.max(0, -sm.pitch.v) * 38;   // nose-up: pivot on the tail, not the centre
+    const onDeck = (x, y) => ({ x: x * pc - (y - PIVOT_Y) * ps, y: PIVOT_Y - liftOff + x * ps + (y - PIVOT_Y) * pc });
+    const front = onDeck(15, DECK_Y - 3 + bump);
+    let back = onDeck(-17, DECK_Y - 3 + bump);
     if (push >= 0) {
       const ground = 2;
       if (push < 0.3) {
@@ -353,7 +386,9 @@ export function createRenderer(app) {
     const swing = stepSpring(sm.swing, swingT, dt, 90, 9);
 
     // back arm
-    arm(g, shoulder, 0.35 + swing - brake * 0.6, 0.1 + swing * 0.5, PAL.hoodieDark);
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const bu = lerp(0.35 + swing - brake * 0.6, 2.45, arms);
+    arm(g, shoulder, bu, lerp(0.1 + swing * 0.5, bu * 0.92, arms), PAL.hoodieDark);
     // back leg
     leg(g, hip, back, PAL.pantsDark);
     // front leg — drawn before the torso so the hoodie hangs over the thighs
@@ -390,7 +425,8 @@ export function createRenderer(app) {
     g.moveTo(head.x - 4, head.y - 16).lineTo(sm.pom.x, sm.pom.y).stroke({ width: 3, color: PAL.beanie, cap: 'round' });
     g.circle(sm.pom.x, sm.pom.y, 4.2).fill({ color: PAL.beanie });
     // front arm
-    arm(g, shoulder, -0.25 - swing * 0.8 + brake * 0.5, 0.35 - swing * 0.4, PAL.hoodie);
+    const fu = lerp(-0.25 - swing * 0.8 + brake * 0.5, -2.05, arms);
+    arm(g, shoulder, fu, lerp(0.35 - swing * 0.4, fu * 0.85, arms), PAL.hoodie);
   }
 
   // --- frame -------------------------------------------------------------
@@ -412,7 +448,8 @@ export function createRenderer(app) {
     cam.y += (groundY - cam.y) * k * 0.8;
     cam.zoom += (targetZoom - cam.zoom) * k * 0.5;
 
-    const scale = cam.zoom;
+    const punch = stepSpring(sm.punch, 0, Math.min(dt, 1 / 30), 90, 11);
+    const scale = cam.zoom * (1 + punch);
     world.scale.set(scale);
     world.position.set(W * (c.riderScreenX - cam.look) - p.x * scale, H * 0.7 - cam.y * scale);
     // Parallax scroll accumulates in screen pixels so zoom changes don't
@@ -442,18 +479,28 @@ export function createRenderer(app) {
     placeLampGlows();
     fog.update(x0, x1, dt, P.fog);
 
-    rider.position.set(p.x, groundY);
-    rider.rotation = -p.boardAngle;   // physics: y up, screen: y down
+    const rdt = Math.min(dt, 1 / 30);
+    const riderY = p.airborne ? -p.airY : groundY;
+    rider.position.set(p.x, riderY);
+    const wobble = stepSpring(sm.wobble, 0, rdt, 70, 4);       // sloppy-landing wobble
+    rider.rotation = -p.boardAngle + wobble * 0.05;           // physics: y up, screen: y down
+    stepSpring(sm.pitch, pitchTarget(p), rdt || 1 / 60, 420, 30);
+    boardG.pivot.set(0, PIVOT_Y);
+    boardG.position.set(0, PIVOT_Y - Math.max(0, -sm.pitch.v) * 38);
+    boardG.rotation = sm.pitch.v;
     drawBoard(boardG, p.wheelSpin, sm.bump.v);
-    drawBody(bodyG, p, t, Math.min(dt, 1 / 30));
+    drawBody(bodyG, p, t, Math.min(dt || 1 / 60, 1 / 30));
     riderBlur.strength = c.riderSoftness;
     riderBlur.enabled = c.riderSoftness > 0.01;
 
     riderShadow.clear();
     // soft contact shadow: stacked ellipses fading out
+    // the shadow stays on the ground and fades/shrinks as the rider rises
+    const lift = p.airborne ? Math.max(0, p.airY - height(p.x)) : 0;
+    const sh = 1 / (1 + lift / 90);
     for (let i = 0; i < 4; i++) {
-      riderShadow.ellipse(p.x - 4, groundY + 1, 30 + i * 8, 2.5 + i * 1.2)
-        .fill({ color: PAL.shadow, alpha: PAL.shadowAlpha * 0.4 });
+      riderShadow.ellipse(p.x - 4, groundY + 1, (30 + i * 8) * (0.6 + 0.4 * sh), (2.5 + i * 1.2) * (0.6 + 0.4 * sh))
+        .fill({ color: PAL.shadow, alpha: PAL.shadowAlpha * 0.4 * sh });
     }
 
     fgLayer.update(W, H, cam.scroll, t, PAL);
@@ -464,5 +511,14 @@ export function createRenderer(app) {
     sm.bump.vel += (front ? 1 : 0.7) * (12 + Math.min(1, speed / 900) * 24);
   }
 
-  return { render, bump };
+  // Landing: knees absorb the impact; sloppy landings wobble; Perfect gets a
+  // small camera punch-in.
+  function land(impact, quality) {
+    sm.crouch.vel += Math.min(400, impact * 0.9);
+    sm.bump.vel += Math.min(60, impact * 0.08);
+    if (quality === 'Sloppy') sm.wobble.vel += 14;
+    if (quality === 'Perfect') sm.punch.vel += 0.35;
+  }
+
+  return { render, bump, land };
 }

@@ -34,6 +34,22 @@
     }
     #hint.show { opacity: 1; transform: none; }
 
+    /* trick popup: big name, quality, stars — soft rise in, fade out */
+    #trick {
+      position: fixed; left: 50%; top: 18%; transform: translate(-50%, 10px) scale(0.92);
+      text-align: center; pointer-events: none; opacity: 0;
+      color: #fff8ef; text-shadow: 0 2px 18px rgba(40, 20, 30, 0.45);
+      transition: opacity .45s ease, transform .6s cubic-bezier(.2, 1.4, .4, 1);
+    }
+    #trick.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    #trick .name { font-size: clamp(30px, 7vh, 56px); font-weight: 800; letter-spacing: 0.02em; line-height: 1; }
+    #trick .quality { font-size: clamp(14px, 3.2vh, 22px); font-weight: 700; margin-top: 6px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.9; }
+    #trick .stars { font-size: clamp(12px, 2.6vh, 18px); letter-spacing: 0.2em; opacity: 0.85; margin-top: 4px; }
+    #trick .new { font-size: clamp(12px, 2.6vh, 16px); font-weight: 800; letter-spacing: 0.3em; color: #ffd79a; margin-bottom: 4px; }
+    #trick.q-perfect .quality { color: #ffe2a6; }
+    #trick.q-sloppy .quality { opacity: 0.65; }
+    #trick.is-new .name { color: #ffe9c4; }
+
     #rotate {
       position: fixed; inset: 0; display: none; place-items: center; text-align: center;
       background: linear-gradient(#d79d8c, #fbe9d0); color: var(--paper);
@@ -71,6 +87,7 @@
 <body>
   <div id="game"></div>
   <div id="hint"></div>
+  <div id="trick"><div class="new">NEW!</div><div class="name"></div><div class="stars"></div><div class="quality"></div></div>
   <div id="rotate"><div><span class="phone">📱</span>Vänd telefonen</div></div>
   <div id="dev">
     <div class="dev-head">

@@ -157,3 +157,31 @@ export function musicPhase() {
   const start = nextChordAt - CHORD_SECONDS;
   return Math.max(0, Math.min(1, (ctx.currentTime - start) / CHORD_SECONDS));
 }
+
+// Landing chime built from the chord that is sounding right now, so it always
+// fits the music. 'perfect' = a light two-note pling; 'new' = a rising arpeggio.
+export function landingChime(kind = 'perfect') {
+  if (!ctx) return;
+  const notes = currentChordNotes();
+  const pcs = [...new Set(notes.map((m) => m % 12))];
+  // place chord tones in a bright register (around C6)
+  const bright = pcs.map((pc) => 84 + ((pc - 84 % 12 + 12) % 12)).sort((a, b) => a - b);
+  const seq = kind === 'new' ? [bright[0] - 12, bright[1] - 12, bright[2] ?? bright[0], bright[3] ?? bright[1]]
+                             : [bright[0], bright[Math.min(2, bright.length - 1)]];
+  const t0 = ctx.currentTime + 0.01;
+  seq.forEach((m, i) => {
+    const start = t0 + i * (kind === 'new' ? 0.085 : 0.06);
+    for (const [mult, g] of [[1, 1], [2, 0.18]]) {      // fundamental + soft overtone = bell
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = hz(m) * mult;
+      const env = ctx.createGain();
+      const peak = (kind === 'new' ? 0.09 : 0.07) * g;
+      env.gain.setValueAtTime(0, start);
+      env.gain.linearRampToValueAtTime(peak, start + 0.008);
+      env.gain.exponentialRampToValueAtTime(0.0001, start + 1.8);
+      o.connect(env).connect(chimeBus);
+      o.start(start); o.stop(start + 1.9);
+    }
+  });
+}

@@ -26,26 +26,33 @@ Beslutat i grill-session 2026-11-21. Ändra här när ett beslut ändras.
   långsam dygnsrytm. M1 använder en matematisk böljande väg som platshållare.
 - Hinder v1: flatground, kickers, kantstenar, trappor/gaps. Grinds/slides = v2.
 
-## Trick – en gest per trick
+## Trick – två medvetna rörelser (ändrat 2026-11-22, Toms idé)
 
-1. **Finger ner** (höger zon) = pop
-2. **Dra** med fingret kvar = flick (väljer trick)
-3. **Lyft** = catch – timingen ger kvaliteten
+1. **Ollie (pop):** höger tumme **ner = gå ner på huk** (stannar där så länge du håller),
+   **snäpp uppåt = pop**. Snäppets fart ger höjden; ollien betygsätts av snäppet:
+   snabbt + rakt = Perfect, långsamt eller snett = Sloppy (`cleanSnap`/`perfectSnap`, `cleanAngle`/`perfectAngle`).
+   Tryck utan att dra uppåt = reser sig igen. Går även från stillastående.
+2. **Trick (M3):** ny rörelse i luften – sätt ner fingret, **svep i en riktning** (flick = väljer trick),
+   **håll**, **släpp = catch** när brädan roterat klart → Sloppy/Clean/Perfect.
 
-Rent tryck = ollie.
+Luft: ~0,9 s, mjukt **häng** vid toppen (lägre gravitation nära vändpunkten, `hangGravity`).
+Ingen konstant slow motion – den bryter rytmen och slits ut. `airSlowmo` finns som reglage (0 = av);
+slow motion sparas som belöning för sällsynta ögonblick. Animation följer ollie-infografikens 6 faser:
+huk → tail slår (nosen upp, brädan vrids kring tailen) → framfoten drar upp → benen in vid toppen →
+framfoten planar ut → mjuk landning med böjda knän.
 
-| Svep | Trick | Svårighet | Vinkeltolerans |
+| Svep (i luften) | Trick | Svårighet | Vinkeltolerans |
 |---|---|---|---|
-| tryck | Ollie | ★ | – |
+| snäpp ↑ (pop) | Ollie | ★ | se ovan |
 | ↓ | Pop shove-it | ★★ | ±35° |
-| ↑ | FS shove-it | ★★ | ±35° |
 | ← | Kickflip | ★★ | ±35° |
 | → | Heelflip | ★★ | ±35° |
+| ↗ (var ↑ – ↑ är nu pop) | FS shove-it | ★★ | ±35° |
 | ↙ | Varial kickflip | ★★★ | ±25° |
 | ↖ | Hardflip | ★★★★ | ±20° |
 | båge ↓→← (kvartscirkel) | 360 flip | ★★★★★ | rätt krökning |
 
-Slarvigt svep → fel trick → fall. Stances (nollie/fakie/switch) senare, multiplicerar svårighet.
+> Mappningen ses över i M3 – ↑ i luften är nu ledig men kan förväxlas med pop.
 
 ### Catch-fönster (± kring ögonblicket brädan roterat klart)
 
@@ -62,7 +69,8 @@ Greptejpen blinkar när den vänder upp = visuell catch-ledtråd. Alla värden i
 
 - **Popup:** tricknamn stort, kvalitet under, svårighet i stjärnor. Tonar bort ~1,5 s. Inga poäng.
 - **Första gången** ett trick landas: större "NEW!"-effekt + ackord.
-- **Perfect:** hitstop ~80 ms, ljust ackord, dammpuff, stark haptik, lätt kamera-zoom.
+- **Perfect:** hitstop ~60 ms, ljust ackord byggt ur musikens aktuella ackord (`landingChime`), stark haptik,
+  lätt kamera-zoom. För ollien nedtonat till ett kort pling – fanfaren sparas till svårare trick.
 - **Clean:** nöjt "klonk", lätt haptik. **Sloppy:** vingel, skrapigt ljud.
 - **Fall:** mjukt – snubblar, joggar ikapp brädan, igång efter ~1,5 s. Inget game over.
 - **Varför man föll:** diskret ikon (för tidigt / för sent / fel riktning) som tonar bort.
@@ -129,8 +137,8 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
 
 Varje steg testas på telefonen och godkänns innan nästa.
 
-1. **Rullkänsla** – push, momentum, lutning, kamera, hjulljud. *(klar för test 2026-11-21)*
-2. **Ollie** – pop, luft, catch, landning, fall, landningsfeedback
+1. **Rullkänsla** – push, momentum, lutning, kamera, hjulljud. *(godkänd 2026-11-22)*
+2. **Ollie** – huk + snäpp, luft med häng, 6-fasanimation, landning, popup, statistik *(klar för test 2026-11-22)*
 3. **Alla 8 trick** – gestigenkänning, popup
 4. **Världen** – gatubitar, kantstenar, trappor, parallax, dygnsrytm
 5. **Trickboken** – statistik, mastery, tips, sparning, vänsterhänt läge

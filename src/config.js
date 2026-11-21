@@ -13,6 +13,20 @@ export const DEFAULTS = {
   brakeDelay: 0.18,       // hold left this long after a kick → foot brake
   maxSpeed: 1300,
 
+  // --- ollie ---
+  popDistance: 26,         // px the finger must travel upward to pop
+  popVel: 380,             // base take-off speed (world units/s)
+  airGravity: 900,         // gravity in the air (lower than real = floatier)
+  hangGravity: 0.45,       // gravity multiplier near the apex …
+  hangWindow: 110,         // … while |vertical speed| is below this
+  airSlowmo: 0,            // 0 = off; >0 slows time mid-air (bell curve)
+  minSnap: 250,            // px/s — slower snaps still pop, weakly
+  cleanSnap: 700,          // px/s needed for Clean
+  perfectSnap: 1300,       // px/s needed for Perfect
+  cleanAngle: 25,          // max degrees off vertical for Clean
+  perfectAngle: 12,        // max degrees off vertical for Perfect
+  hitstop: 0.06,           // seconds frozen on a Perfect landing
+
   // --- terrain ---
   hillAmp: 1,             // multiplier for hill heights
   hillLength: 1.3,          // multiplier for hill wavelength
@@ -90,6 +104,18 @@ export const RANGES = {
   brakeDecel: [100, 1200, 10],
   brakeDelay: [0.05, 0.5, 0.01],
   maxSpeed: [500, 2500, 10],
+  popDistance: [10, 80, 1],
+  popVel: [150, 600, 5],
+  airGravity: [300, 2000, 10],
+  hangGravity: [0.1, 1, 0.01],
+  hangWindow: [0, 300, 5],
+  airSlowmo: [0, 0.7, 0.01],
+  minSnap: [0, 1000, 10],
+  cleanSnap: [200, 2500, 10],
+  perfectSnap: [400, 4000, 10],
+  cleanAngle: [5, 60, 1],
+  perfectAngle: [2, 40, 1],
+  hitstop: [0, 0.2, 0.005],
   hillAmp: [0, 3, 0.05],
   hillLength: [0.3, 3, 0.05],
   baseViewHeight: [350, 1000, 10],

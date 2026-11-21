@@ -132,3 +132,24 @@ export function footOnDeck() {
   thump(46, 0.16, 0.045);
   burst({ freq: 160, dur: 0.07, gain: 0.012, attack: 0.012 });
 }
+
+// Ollie pop: the tail strikes the ground — a soft woody "tock" (kept round
+// and warm, like everything else) plus a whisper of grip tape as the front
+// foot drags up.
+export function popSound(power = 1) {
+  if (!ctx) return;
+  burst({ freq: 900, q: 3, dur: 0.06, gain: 0.07 * power, type: 'bandpass', attack: 0.002 });
+  thump(150, 0.07, 0.08 * power);
+  setTimeout(() => burst({ freq: 700, dur: 0.16, gain: 0.03, attack: 0.03 }), 70);
+}
+
+// Landing: four wheels and a deck meeting the ground. Heavier for harder
+// impacts; sloppy landings add a short scrape.
+export function landSound(impact, quality) {
+  if (!ctx) return;
+  const k = Math.min(1, impact / 450);
+  thump(52, 0.2, 0.09 + 0.08 * k);
+  burst({ freq: 380, dur: 0.09, gain: 0.05 + 0.04 * k, attack: 0.004 });
+  setTimeout(() => burst({ freq: 320, dur: 0.06, gain: 0.03 }), 25);   // second truck
+  if (quality === 'Sloppy') setTimeout(() => burst({ freq: 600, q: 0.8, dur: 0.22, gain: 0.04, type: 'bandpass', attack: 0.02 }), 40);
+}
