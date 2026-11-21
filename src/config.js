@@ -15,14 +15,14 @@ export const DEFAULTS = {
 
   // --- ollie ---
   popDistance: 26,         // px the finger must travel upward to pop
-  popVel: 340,             // base take-off speed (world units/s)
+  popVel: 375,             // base take-off speed (world units/s)
   airGravity: 900,         // gravity in the air (lower than real = floatier)
   hangGravity: 0.45,       // gravity multiplier near the apex …
-  hangWindow: 110,         // … while |vertical speed| is below this
+  hangWindow: 205,         // … while |vertical speed| is below this
   airSlowmo: 0,            // 0 = off; >0 slows time mid-air (bell curve)
   minSnap: 250,            // px/s — slower snaps still pop, weakly
   cleanSnap: 700,          // px/s needed for Clean
-  perfectSnap: 1300,       // px/s needed for Perfect
+  perfectSnap: 2000,       // px/s needed for Perfect
   cleanAngle: 25,          // max degrees off vertical for Clean
   perfectAngle: 12,        // max degrees off vertical for Perfect
   hitstop: 0.06,           // seconds frozen on a Perfect landing

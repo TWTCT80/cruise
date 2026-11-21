@@ -142,8 +142,27 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
 Varje steg testas på telefonen och godkänns innan nästa.
 
 1. **Rullkänsla** – push, momentum, lutning, kamera, hjulljud. *(godkänd 2026-11-22)*
-2. **Ollie** – huk + snäpp, luft med häng, 6-fasanimation, landning, popup, statistik *(klar för test 2026-11-22)*
+2. **Ollie** – huk + snäpp, luft med häng, 6-fasanimation, landning, popup, statistik *(byggd 2026-11-22, finjusteras – ej formellt godkänd)*
 3. **Alla 8 trick** – gestigenkänning, popup
 4. **Världen** – gatubitar, kantstenar, trappor, parallax, dygnsrytm
 5. **Trickboken** – statistik, mastery, tips, sparning, vänsterhänt läge
 6. **Polering + Capacitor** – haptik, iPhone-build, ikon
+
+## Status & nästa steg (2026-11-22, slut på passet)
+
+**Klart:** M1 godkänd. M2 ollie byggd och testad på telefon: gest (huk + snäpp uppåt), animation
+omgjord efter referensfoton (kroppen hoppar, grodhuk med knäna isär, smal stans vid toppen),
+landningsfeedback, popup med NEW!, statistik. Toms värden: `popVel` 375, `hangWindow` 205,
+`perfectSnap` 2000. Förgrund = böljande kullar + helt svarta skyltar + buskar (finslipas senare).
+Service worker (network-first) + Uppdatera-knapp löser cache-problemet på telefonen.
+
+**Öppet i M2 att stämma av nästa gång:**
+- `perfectAngle` 12° kan vara för snävt – Toms tumme snäpper naturligt ~17°. Pröva 20°?
+- Kännas landningen, plinget och popupen rätt? Höjd/airtime ok efter nya värden?
+- Formellt godkännande av M2 innan M3.
+
+**Nästa: M3 – alla trick.** Andra rörelsen i luften: sätt ner fingret, svep (riktning = trick), håll,
+släpp = catch. Att göra: se över svepmappningen (↑ är nu pop, FS shove-it flyttad till ↗),
+gestigenkänning med vinkeltolerans, brädans rotationer (flip/shove) i animationen, greptejps-blink som
+catch-ledtråd, catch-fönster → Sloppy/Clean/Perfect, mjukt fall (snubbla, jogga ikapp ~1,5 s), diskret
+ikon för varför man föll, större fanfar för svårare trick.
