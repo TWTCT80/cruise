@@ -18,7 +18,7 @@ export function hsl(h, s, l) {
 export const GARMENTS = ['hoodie', 'pants', 'beanie'];
 
 export const OUTFIT_PRESETS = {
-  Tom: { hoodieHue: 173, hoodieSat: 0.58, hoodieLight: 0.17, pantsHue: 234, pantsSat: 0.2, pantsLight: 0.14, beanieHue: 12, beanieSat: 0.88, beanieLight: 0.23 },
+  Tom: { hoodieHue: 173, hoodieSat: 0.58, hoodieLight: 0.17, pantsHue: 219, pantsSat: 0.2, pantsLight: 0.14, beanieHue: 12, beanieSat: 0.88, beanieLight: 0.23 },
   Original: { hoodieHue: 173, hoodieSat: 0.58, hoodieLight: 0.39, pantsHue: 234, pantsSat: 0.2, pantsLight: 0.3, beanieHue: 12, beanieSat: 0.76, beanieLight: 0.61 },
   Svart:    { hoodieHue: 230, hoodieSat: 0.08, hoodieLight: 0.1, pantsHue: 230, pantsSat: 0.08, pantsLight: 0.08, beanieHue: 230, beanieSat: 0.08, beanieLight: 0.12 },
   'Svart/röd': { hoodieHue: 230, hoodieSat: 0.08, hoodieLight: 0.1, pantsHue: 230, pantsSat: 0.08, pantsLight: 0.08, beanieHue: 6, beanieSat: 0.7, beanieLight: 0.5 },

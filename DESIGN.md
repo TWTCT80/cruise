@@ -102,13 +102,12 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
   tröjans färg i dagsljus och blir varmt motljus i skymning – håller en svart outfit läsbar.
 - **Förgrund (`src/foreground.js`)**, i stil med Toms referensbilder (silhuett-illustration):
   - **Böljande landskap** längs nederkanten i två lager (främre mörkast, parallax 1,45; bakre disigare,
-    1,2) med bara enstaka mjuka grästuvor på krönen – lugnt, inte spretigt. Reglage `hills`.
-  - Stora enkla massor: **lövklungor** och platta **lövkuddar** (skärmtall). Få element som ramar in:
-    lövträd med 1–3 stammar, skärmtall, kala trädstammar, tunga grenar uppifrån, buskar och någon
-    enstaka **vägskylt** – allt står *på* kullarna. Stora element alltid glest.
-  - Vajar i vinden, färg följer `mood`. Reglage: `foreground` (<0,5 utan träd), `fgBlur` (1,6).
-  - Provat och bortvalt 2026-11-21: stadsföremål överallt, spretig äng, granar.
-  - Inför trick: bedöm om träden stör läsbarheten.
+    1,2) med bara enstaka mjuka grästuvor på krönen. Reglage `hills` (0,5).
+  - På kullarna: enstaka **helt svarta vägskyltar** (svart skiva, triangel eller gatunamnsblad på en
+    pinne – inga genomskinliga detaljer) och några buskar. Glest.
+  - Färg följer `mood`. Reglage: `foreground`, `fgBlur` (1,6).
+  - Provat och bortvalt 2026-11-21/22: stadsföremål överallt, spretig äng, granar, alla träd och
+    hängande grenar.
 - Platt geometrisk vektorgrafik, mjuka gradienter, allt ritat i kod.
 - En ansiktslös figur (hoodie + mössa), kroppsspråket gör jobbet.
 - Ljud: procedurellt i prototypen, "inbäddat i bomull" (lågpass + kompressor på master);

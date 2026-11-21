@@ -15,7 +15,7 @@ export const DEFAULTS = {
 
   // --- terrain ---
   hillAmp: 1,             // multiplier for hill heights
-  hillLength: 1,          // multiplier for hill wavelength
+  hillLength: 1.3,          // multiplier for hill wavelength
 
   // --- camera ---
   baseViewHeight: 540,    // world units visible vertically at rest
@@ -34,13 +34,13 @@ export const DEFAULTS = {
   riderHaze: 0.1,          // how much the air tints the rider
   grain: 0.075,             // film grain / anti-banding dither strength
   fogAmount: 1.95,
-  foreground: 1,           // 0 = off, <0.5 = no trees, 1 = everything
+  foreground: 1,           // 0 = foreground off
   fgBlur: 1.6,             // depth-of-field blur on foreground silhouettes
-  hills: 1,                // height of the rolling foreground hills (0 = off)            // ground fog thickness multiplier
+  hills: 0.5,               // height of the rolling foreground hills (0 = off)            // ground fog thickness multiplier
 
   // --- outfit (HSL per garment; dev panel has presets) ---
   hoodieHue: 173, hoodieSat: 0.58, hoodieLight: 0.17,
-  pantsHue: 234, pantsSat: 0.2, pantsLight: 0.14,
+  pantsHue: 219, pantsSat: 0.2, pantsLight: 0.14,
   beanieHue: 12, beanieSat: 0.88, beanieLight: 0.23,
 
   // --- audio ---
