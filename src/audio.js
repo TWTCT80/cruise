@@ -1,5 +1,7 @@
-// Procedural audio — no sample files yet. Wheels = filtered noise driven by
-// speed, sidewalk seams = soft double "clack", kicks = shoe scuff, brake = grit.
+// Procedural audio — no sample files yet. Aim: soft and warm, never sharp.
+// Everything goes through a gentle lowpass + compressor on the master bus.
+// Wheels = brown noise under a lowpass that opens with speed; seams = one
+// soft "dunk" per wheel; kicks = muffled shoe scuff; brake = low grit.
 // Real recorded samples replace these before release (see DESIGN.md).
 
 import { config } from './config.js';
@@ -26,36 +28,44 @@ function loopSource(buf) {
   return s;
 }
 
+function filter(type, freq, q = 0.7) {
+  const f = ctx.createBiquadFilter();
+  f.type = type; f.frequency.value = freq; f.Q.value = q;
+  return f;
+}
+
 // Must be called from inside a user gesture (iOS requirement).
 export function unlockAudio() {
   if (ctx) { if (ctx.state !== 'running') ctx.resume(); return; }
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return;
   ctx = new AC();
+
+  // master bus: gain → soft lowpass → gentle compressor
   master = ctx.createGain();
   master.gain.value = config.masterVolume;
-  master.connect(ctx.destination);
+  const tame = filter('lowpass', 3800, 0.5);
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -20; comp.knee.value = 18; comp.ratio.value = 3;
+  comp.attack.value = 0.01; comp.release.value = 0.2;
+  master.connect(tame).connect(comp).connect(ctx.destination);
 
   noiseBuf = makeNoise(2);
   const brownBuf = makeNoise(4, true);
 
-  // Wheel roll: brown noise through a bandpass that opens with speed.
-  rollFilter = ctx.createBiquadFilter();
-  rollFilter.type = 'bandpass'; rollFilter.Q.value = 0.7; rollFilter.frequency.value = 200;
+  // wheel roll
+  rollFilter = filter('lowpass', 200, 0.4);
   rollGain = ctx.createGain(); rollGain.gain.value = 0;
   loopSource(brownBuf).connect(rollFilter).connect(rollGain).connect(master);
 
-  // Low rumble underneath for body.
-  const lp = ctx.createBiquadFilter();
-  lp.type = 'lowpass'; lp.frequency.value = 110;
+  // low body rumble
   rumbleGain = ctx.createGain(); rumbleGain.gain.value = 0;
-  loopSource(brownBuf).connect(lp).connect(rumbleGain).connect(master);
+  loopSource(brownBuf).connect(filter('lowpass', 90, 0.5)).connect(rumbleGain).connect(master);
 
-  // Foot brake: gritty highpassed white noise.
-  const hp = ctx.createBiquadFilter();
-  hp.type = 'bandpass'; hp.frequency.value = 2400; hp.Q.value = 0.6;
+  // foot brake: low, sandy grit
   brakeGain = ctx.createGain(); brakeGain.gain.value = 0;
-  loopSource(noiseBuf).connect(hp).connect(brakeGain).connect(master);
+  loopSource(noiseBuf).connect(filter('bandpass', 850, 0.5)).connect(filter('lowpass', 1400, 0.5))
+    .connect(brakeGain).connect(master);
 }
 
 export function updateAudio(p) {
@@ -64,54 +74,49 @@ export function updateAudio(p) {
   const s = Math.min(1, p.speed / 900);
   const vol = config.rollVolume;
   master.gain.setTargetAtTime(config.masterVolume, t, 0.05);
-  rollGain.gain.setTargetAtTime(vol * (s > 0.005 ? 0.08 + 0.5 * s : 0), t, 0.06);
-  rollFilter.frequency.setTargetAtTime(160 + 900 * s, t, 0.08);
-  rumbleGain.gain.setTargetAtTime(vol * 0.9 * s, t, 0.08);
-  brakeGain.gain.setTargetAtTime(0.35 * p.brakeAmount * Math.min(1, p.speed / 300), t, 0.04);
+  rollGain.gain.setTargetAtTime(vol * (s > 0.005 ? 0.06 + 0.34 * s : 0), t, 0.08);
+  rollFilter.frequency.setTargetAtTime(220 + 420 * s, t, 0.1);
+  rumbleGain.gain.setTargetAtTime(vol * 0.8 * s, t, 0.1);
+  brakeGain.gain.setTargetAtTime(0.16 * p.brakeAmount * Math.min(1, p.speed / 300), t, 0.06);
 }
 
-function burst({ freq, q = 1, dur = 0.08, gain = 0.3, delay = 0, type = 'bandpass' }) {
-  const t = ctx.currentTime + delay;
+function burst({ freq, q = 0.7, dur = 0.08, gain = 0.2, type = 'lowpass', attack = 0.006 }) {
+  const t = ctx.currentTime;
   const src = ctx.createBufferSource();
   src.buffer = noiseBuf;
-  const f = ctx.createBiquadFilter();
-  f.type = type; f.frequency.value = freq; f.Q.value = q;
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(gain, t + 0.004);
+  g.gain.linearRampToValueAtTime(gain, t + attack);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  src.connect(f).connect(g).connect(master);
+  src.connect(filter(type, freq, q)).connect(g).connect(master);
   src.start(t, Math.random() * 1.5);
   src.stop(t + dur + 0.02);
 }
 
-function thump(freq, dur, gain, delay = 0) {
-  const t = ctx.currentTime + delay;
+function thump(freq, dur, gain) {
+  const t = ctx.currentTime;
   const o = ctx.createOscillator();
-  o.frequency.setValueAtTime(freq * 1.6, t);
-  o.frequency.exponentialRampToValueAtTime(freq, t + dur * 0.5);
+  o.frequency.setValueAtTime(freq * 1.4, t);
+  o.frequency.exponentialRampToValueAtTime(freq, t + dur * 0.4);
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(gain, t + 0.003);
+  g.gain.linearRampToValueAtTime(gain, t + 0.005);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(master);
   o.start(t); o.stop(t + dur + 0.02);
 }
 
-// Front and back trucks cross a seam one wheelbase apart.
-export function seamClack(speed) {
+// One wheel rolling over one seam. Called at the moment it crosses.
+export function seamClack(speed, front = true) {
   if (!ctx || speed < 30) return;
   const s = Math.min(1, speed / 900);
-  const gap = Math.min(0.25, 75 / speed);
-  const g = 0.10 + 0.22 * s;
-  for (const d of [0, gap]) {
-    burst({ freq: 1400 + Math.random() * 300, q: 2.5, dur: 0.035, gain: g, delay: d });
-    thump(95, 0.07, g * 0.9, d);
-  }
+  const g = (0.05 + 0.11 * s) * (front ? 1 : 0.8);
+  thump(front ? 72 : 66, 0.11, g * 1.2);
+  burst({ freq: 700 + 300 * s, dur: 0.05, gain: g * 0.45 });
 }
 
 export function kickScuff() {
   if (!ctx) return;
-  burst({ freq: 700 + Math.random() * 200, q: 0.8, dur: 0.16, gain: 0.22 });
-  burst({ freq: 3000, q: 1, dur: 0.06, gain: 0.05 });
+  burst({ freq: 520 + Math.random() * 120, dur: 0.2, gain: 0.13, attack: 0.02 });
+  thump(58, 0.12, 0.08);
 }

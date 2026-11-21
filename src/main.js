@@ -96,7 +96,24 @@ const hints = (() => {
 // --- loop ------------------------------------------------------------------
 const STEP = 1 / 120;
 let acc = 0, time = 0;
-let lastSeam = Math.floor(player.x / config.seamSpacing);
+// Each wheel clacks when *it* rolls over a seam (wheels sit ±22 units from
+// the board centre, along the board).
+const WHEEL_OFFSET = 22;
+const wheelSeam = (sign) => {
+  const x = player.x + sign * WHEEL_OFFSET * Math.cos(player.boardAngle);
+  return Math.floor(x / config.seamSpacing);
+};
+const lastSeam = { front: wheelSeam(1), back: wheelSeam(-1) };
+function checkSeams() {
+  for (const [key, sign] of [['front', 1], ['back', -1]]) {
+    const s = wheelSeam(sign);
+    if (s !== lastSeam[key]) {
+      lastSeam[key] = s;
+      seamClack(player.speed, key === 'front');
+      renderer.bump(player.speed, key === 'front');
+    }
+  }
+}
 
 app.ticker.add((ticker) => {
   const dt = Math.min(ticker.deltaMS / 1000, 1 / 20);
@@ -104,11 +121,9 @@ app.ticker.add((ticker) => {
   while (acc >= STEP) {
     update(player, STEP);
     acc -= STEP;
+    checkSeams();
   }
   time += dt;
-
-  const seam = Math.floor(player.x / config.seamSpacing);
-  if (seam !== lastSeam) { seamClack(player.speed); renderer.bump(player.speed); lastSeam = seam; }
 
   hints.tick();
   updateAudio(player);

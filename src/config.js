@@ -20,7 +20,7 @@ export const DEFAULTS = {
   // --- camera ---
   baseViewHeight: 540,    // world units visible vertically at rest
   speedZoomOut: 0.18,     // extra view at max speed (fraction)
-  lookAhead: 0.55,        // seconds of travel the camera looks ahead
+  lookAhead: 0.12,        // at max speed the rider shifts this much screen width left
   camSmooth: 3.2,         // higher = snappier camera
   riderScreenX: 0.30,     // rider's resting horizontal screen position
 
@@ -75,7 +75,7 @@ export const RANGES = {
   hillLength: [0.3, 3, 0.05],
   baseViewHeight: [350, 1000, 10],
   speedZoomOut: [0, 0.6, 0.01],
-  lookAhead: [0, 1.5, 0.05],
+  lookAhead: [0, 0.25, 0.01],
   camSmooth: [0.5, 10, 0.1],
   riderScreenX: [0.15, 0.5, 0.01],
   boardTiltSmooth: [2, 40, 1],

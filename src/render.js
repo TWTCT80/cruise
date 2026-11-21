@@ -71,7 +71,7 @@ export function createRenderer(app) {
   world.addChild(groundG, riderShadow, rider);
   stage.addChild(atm.back, far, atm.haze[0], mid, atm.haze[1], town, atm.haze[2], world, fg, atm.front);
 
-  const cam = { x: 0, y: 0, zoom: 1, init: false };
+  const cam = { look: 0, y: 0, zoom: 1, init: false, scroll: 0, lastX: null };
 
   // --- secondary-motion state ---------------------------------------------
   const sm = {
@@ -156,8 +156,10 @@ export function createRenderer(app) {
       const y = -height(x);
       g.moveTo(x, y + 2).lineTo(x - 6, y + 34).stroke({ width: 2, color: PAL.seam });
     }
+    // lamps sit at k*ps + 400; start one lamp left of the view so a lamp
+    // whose arm/glow is still visible isn't culled early
     const ps = 1150;
-    for (let x = Math.ceil((x0 - 100) / ps) * ps + 400; x <= x1 + 100; x += ps) {
+    for (let x = Math.floor((x0 - 400 - 100) / ps) * ps + 400; x <= x1 + 100; x += ps) {
       const y = -height(x) + 4;
       g.roundRect(x - 4, y - 300, 8, 300, 4).fill({ color: PAL.post });
       g.moveTo(x, y - 296).quadraticCurveTo(x + 4, y - 330, x + 40, y - 326).stroke({ width: 7, color: PAL.post, cap: 'round' });
@@ -240,7 +242,8 @@ export function createRenderer(app) {
 
     // External forces in the rider's local frame.
     const G = 900;
-    const gx = G * Math.sin(p.boardAngle), gy = G * Math.cos(p.boardAngle);
+    const rot = -p.boardAngle;               // same rotation as the rider container
+    const gx = G * Math.sin(rot), gy = G * Math.cos(rot);
     const wind = -p.speed;                     // head-wind
     const inertia = -p.accel * 0.6;
     const flutter = (f, ph) => Math.sin(t * f + ph) * (0.25 + Math.min(1, p.speed / 700)) ;
@@ -255,6 +258,8 @@ export function createRenderer(app) {
     }
     crouchT += 24 * brake;
     leanT += 0.06 * brake;
+    // stay more upright than the board on slopes, like a real rider
+    leanT -= (-p.boardAngle) * 0.6;
     const lean = stepSpring(sm.lean, leanT, dt, 140, 14);
     const crouch = stepSpring(sm.crouch, crouchT, dt, 170, 16);
 
@@ -364,24 +369,34 @@ export function createRenderer(app) {
     const viewH = c.baseViewHeight * (1 + c.speedZoomOut * s);
     const targetZoom = H / viewH;
     const groundY = -height(p.x);
-    const targetX = p.x + p.speed * c.lookAhead;
+    // Look-ahead is a fraction of screen width (bounded), so the rider never
+    // drifts off the left edge at high speed.
+    const lookT = c.lookAhead * s;
     const k = 1 - Math.exp(-dt * c.camSmooth);
-    if (!cam.init) { cam.x = targetX; cam.y = groundY; cam.zoom = targetZoom; cam.init = true; }
-    cam.x += (targetX - cam.x) * k;
+    if (!cam.init) { cam.look = lookT; cam.y = groundY; cam.zoom = targetZoom; cam.init = true; }
+    cam.look += (lookT - cam.look) * k * 0.6;
     cam.y += (groundY - cam.y) * k * 0.8;
     cam.zoom += (targetZoom - cam.zoom) * k * 0.5;
 
     const scale = cam.zoom;
-    const lookOffset = (cam.x - p.x) * scale;
     world.scale.set(scale);
-    world.position.set(W * c.riderScreenX - p.x * scale - lookOffset, H * 0.7 - cam.y * scale);
+    world.position.set(W * (c.riderScreenX - cam.look) - p.x * scale, H * 0.7 - cam.y * scale);
+    // Parallax scroll accumulates in screen pixels so zoom changes don't
+    // make distant layers slide (x * scale would jump far out on the road).
+    if (cam.lastX === null) cam.lastX = p.x;
+    cam.scroll += (p.x - cam.lastX) * scale;
+    cam.lastX = p.x;
+    // Background layers use a fixed (non-zooming) scale so they never slide
+    // when the camera zooms with speed.
+    const bgScale = H / c.baseViewHeight;
+    const px = cam.scroll / bgScale; // layers compute px * bgScale * factor
 
-    atm.update(W, H, cam.x, scale, t);
-    drawRidge(far, W, H, cam.x, scale, 0.06, 0.6, 0.2, 260, PAL.far, 12);
+    atm.update(W, H, px, bgScale, t);
+    drawRidge(far, W, H, px, bgScale, 0.06, 0.6, 0.2, 260, PAL.far, 12);
     atm.placeHaze(0, W, H, 0.62, 0.22, 0.85);
-    drawRidge(mid, W, H, cam.x, scale, 0.16, 0.69, 0.13, 150, PAL.mid, 10);
+    drawRidge(mid, W, H, px, bgScale, 0.16, 0.69, 0.13, 150, PAL.mid, 10);
     atm.placeHaze(1, W, H, 0.69, 0.16, 0.7);
-    drawTown(town, W, H, cam.x, scale, 0.38);
+    drawTown(town, W, H, px, bgScale, 0.38);
     atm.placeHaze(2, W, H, 0.7, 0.1, 0.55);
 
     const x0 = (-world.position.x) / scale - 60;
@@ -389,19 +404,19 @@ export function createRenderer(app) {
     drawGround(groundG, x0, x1);
 
     rider.position.set(p.x, groundY);
-    rider.rotation = p.boardAngle;
+    rider.rotation = -p.boardAngle;   // physics: y up, screen: y down
     drawBoard(boardG, p.wheelSpin, sm.bump.v);
     drawBody(bodyG, p, t, Math.min(dt, 1 / 30));
 
     riderShadow.clear();
     riderShadow.ellipse(p.x - 4, groundY + 1, 42, 4).fill({ color: PAL.shadow, alpha: 0.16 });
 
-    drawForeground(fg, W, H, cam.x, scale);
+    drawForeground(fg, W, H, px, bgScale);
   }
 
   // Called when the wheels cross a sidewalk seam.
-  function bump(speed) {
-    sm.bump.vel += 22 + Math.min(1, speed / 900) * 40;
+  function bump(speed, front) {
+    sm.bump.vel += (front ? 1 : 0.7) * (12 + Math.min(1, speed / 900) * 24);
   }
 
   return { render, bump };
