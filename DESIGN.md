@@ -142,7 +142,7 @@ figur, mantel, öken eller mönster – Cruise är en skejtare i en stad i gylle
 Varje steg testas på telefonen och godkänns innan nästa.
 
 1. **Rullkänsla** – push, momentum, lutning, kamera, hjulljud. *(godkänd 2026-11-22)*
-2. **Ollie** – huk + snäpp, luft med häng, 6-fasanimation, landning, popup, statistik *(byggd 2026-11-22, finjusteras – ej formellt godkänd)*
+2. **Ollie** – huk + snäpp, luft med häng, 6-fasanimation, landning, popup, statistik *(godkänd 2026-11-22: `perfectAngle` 10°, `bailAngle` 40°)*
 3. **Alla 8 trick** – gestigenkänning, popup
 4. **Världen** – gatubitar, kantstenar, trappor, parallax, dygnsrytm
 5. **Trickboken** – statistik, mastery, tips, sparning, vänsterhänt läge
@@ -163,10 +163,7 @@ mössan → hoppa på. Utlösare provisorisk: snäpp > `bailAngle` 45°, dev-kna
 Broms (godkänd av Tom): håller man kvar fingret längre än `brakeHold` (0,28 s) stannar sparkfoten i marken och bromsar i stället för att sparka klart (0,12 s var för kort – vanliga dutt avbröts).
 Förhandsversioner testas på `/preview/` (kopia av en branch i `preview/` på main, egna inställningar).
 
-**Öppet i M2 att stämma av nästa gång:**
-- `perfectAngle` 12° kan vara för snävt – Toms tumme snäpper naturligt ~17°. Pröva 20°?
-- Kännas landningen, plinget och popupen rätt? Höjd/airtime ok efter nya värden?
-- Formellt godkännande av M2 innan M3.
+**M2 godkänd 2026-11-22** (Tom: `perfectAngle` 10°, `bailAngle` 40° tills vidare).
 
 **Nästa: M3 – alla trick.** Andra rörelsen i luften: sätt ner fingret, svep (riktning = trick), håll,
 släpp = catch. Att göra: se över svepmappningen (↑ är nu pop, FS shove-it flyttad till ↗),

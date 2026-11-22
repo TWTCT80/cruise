@@ -25,9 +25,9 @@ export const DEFAULTS = {
   cleanSnap: 700,          // px/s needed for Clean
   perfectSnap: 2000,       // px/s needed for Perfect
   cleanAngle: 25,          // max degrees off vertical for Clean
-  perfectAngle: 12,        // max degrees off vertical for Perfect
+  perfectAngle: 10,        // max degrees off vertical for Perfect
   hitstop: 0.06,           // seconds frozen on a Perfect landing
-  bailAngle: 45,           // PROVISIONAL: snaps more crooked than this bail on landing (90 = never)
+  bailAngle: 40,           // PROVISIONAL: snaps more crooked than this bail on landing (90 = never)
 
   // --- terrain ---
   hillAmp: 1,             // multiplier for hill heights
