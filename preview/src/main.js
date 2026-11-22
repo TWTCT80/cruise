@@ -1,8 +1,8 @@
 import { Application } from '../vendor/pixi.min.mjs';
 import { config, loadConfig, NS } from './config.js';
-import { createPlayer, update, pressLeft, releaseLeft, pressRight, releaseRight, pop, bail } from './player.js';
+import { createPlayer, update, pressLeft, releaseLeft, pressRight, releaseRight, pop, bail, startTrick, catchTrick, TRICK_DIRS } from './player.js';
 import { createRenderer } from './render.js';
-import { unlockAudio, updateAudio, seamClack, kickScuff, footOnDeck, popSound, landSound, fallSound } from './audio.js';
+import { unlockAudio, updateAudio, seamClack, kickScuff, footOnDeck, popSound, landSound, fallSound, flickSound, catchSound } from './audio.js';
 import { landingChime } from './music.js';
 import { createDevPanel } from './devpanel.js';
 
@@ -43,7 +43,7 @@ function record(trick, quality) {
 }
 
 // --- trick popup ------------------------------------------------------------
-const TRICKS = { ollie: { name: 'Ollie', stars: 1 } };
+const TRICKS = { ollie: { name: 'Ollie', stars: 1 }, kickflip: { name: 'Kickflip', stars: 2 } };
 const popupEl = document.getElementById('trick');
 let popupTimer = 0;
 function showPopup(trick, quality, isNew) {
@@ -70,6 +70,8 @@ player.onPop = (q, speed, ang) => {
   hints.onOllie();
 };
 player.onLand = (q, impact) => {
+  trickPtr = null;
+  hints.onOllieLanded();
   landSound(impact, q);
   renderer.land(impact, q);
   const isNew = record('ollie', q);
@@ -81,11 +83,44 @@ player.onLand = (q, impact) => {
   else haptic(6);
 };
 
+// --- tricks ------------------------------------------------------------------
+let lastCatch = '-';
+player.onTrickStart = () => { flickSound(); haptic(6); hints.onTrick(); };
+player.onCatch = (grade, delta) => {
+  lastCatch = `${delta >= 0 ? '+' : ''}${delta.toFixed(0)} ms → ${grade || 'miss'}`;
+  if (grade) { catchSound(grade); haptic(grade === 'Perfect' ? 14 : 8); }
+};
+player.onTrickLand = (id, grade, impact) => {
+  trickPtr = null;
+  landSound(impact, grade);
+  renderer.land(impact, grade);
+  const isNew = record(id, grade);
+  showPopup(id, grade, isNew);
+  // bigger fanfare for a real trick: the full arpeggio on Perfect
+  if (isNew || grade === 'Perfect') landingChime('new');
+  else if (grade === 'Clean') landingChime('perfect');
+  if (grade === 'Perfect') { hitstop = config.hitstop * 1.5; haptic([18, 30, 18]); }
+  else if (grade === 'Clean') haptic(12);
+  else haptic(6);
+};
+
+// "why did I fall": a small, soft hint that fades away
+const whyEl = document.getElementById('why');
+let whyTimer = 0;
+function showWhy(reason) {
+  whyEl.textContent = reason === 'early' ? '◂ för tidigt' : 'för sent ▸';
+  whyEl.classList.add('show');
+  clearTimeout(whyTimer);
+  whyTimer = setTimeout(() => whyEl.classList.remove('show'), 1800);
+}
+
 // Bail: no popup, just a soft tumble. Counts as an attempt in the stats.
-player.onBailLand = (impact) => {
+player.onBailLand = (impact, reason, id = 'ollie') => {
+  trickPtr = null;
   landSound(impact, 'Sloppy');
   renderer.land(impact, 'Sloppy');
-  const s = stats.ollie || (stats.ollie = { attempts: 0, landed: 0, perfect: 0 });
+  if (reason) showWhy(reason);
+  const s = stats[id] || (stats[id] = { attempts: 0, landed: 0, perfect: 0 });
   s.attempts++;
   try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch {}
   haptic([10, 40, 10]);
@@ -102,7 +137,7 @@ function testFall() {
 
 // --- dev panel -------------------------------------------------------------
 const dev = createDevPanel(testFall, () =>
-  `speed ${player.speed.toFixed(0)}  fps ${app.ticker.FPS.toFixed(0)}  ·  snap ${lastSnap.speed.toFixed(0)} px/s ${lastSnap.angle.toFixed(0)}° → ${lastSnap.q}`);
+  `speed ${player.speed.toFixed(0)}  fps ${app.ticker.FPS.toFixed(0)}  ·  snap ${lastSnap.speed.toFixed(0)} px/s ${lastSnap.angle.toFixed(0)}° → ${lastSnap.q}  ·  catch ${lastCatch}`);
 
 // --- input -----------------------------------------------------------------
 // Left half: tap = push, keep holding after the kick = foot brake.
@@ -110,6 +145,7 @@ const dev = createDevPanel(testFall, () =>
 // and how straight the snap is). A second touch in the air = tricks (M3).
 const leftPointers = new Set();
 let right = null;   // { id, samples: [{x,y,t}] } while a pop gesture is live
+let trickPtr = null; // { id, x, y, started } — a finger put down in the air
 const isLefty = () => false; // settings toggle comes with milestone 5
 
 function onDown(e) {
@@ -119,11 +155,28 @@ function onDown(e) {
   if (leftZone) {
     leftPointers.add(e.pointerId);
     if (leftPointers.size === 1) pressLeft(player);
+  } else if (player.airborne) {
+    if (!trickPtr && !player.trick) trickPtr = { id: e.pointerId, x: e.clientX, y: e.clientY, started: false, dead: false };
   } else if (!right && pressRight(player)) {
     right = { id: e.pointerId, samples: [{ x: e.clientX, y: e.clientY, t: e.timeStamp }] };
   }
 }
 function onMove(e) {
+  if (trickPtr && e.pointerId === trickPtr.id && !trickPtr.started && !trickPtr.dead) {
+    const dx = e.clientX - trickPtr.x, dy = trickPtr.y - e.clientY;
+    if (Math.hypot(dx, dy) >= config.swipeDistance) {
+      const ang = Math.atan2(dy, dx) * 180 / Math.PI;
+      let hit = null;
+      for (const [id, d] of Object.entries(TRICK_DIRS)) {
+        const diff = Math.abs(((ang - d.dir + 540) % 360) - 180);
+        if (diff <= d.tol) hit = id;
+      }
+      // no match (e.g. straight up, or a trick that isn't built yet): ignored
+      if (hit && startTrick(player, hit)) trickPtr.started = true;
+      else trickPtr.dead = true;
+    }
+    return;
+  }
   if (!right || e.pointerId !== right.id) return;
   const s = right.samples;
   s.push({ x: e.clientX, y: e.clientY, t: e.timeStamp });
@@ -145,6 +198,10 @@ function onMove(e) {
 function onUp(e) {
   if (leftPointers.delete(e.pointerId) && leftPointers.size === 0) releaseLeft(player);
   if (right && e.pointerId === right.id) { releaseRight(player); right = null; }
+  if (trickPtr && e.pointerId === trickPtr.id) {
+    if (trickPtr.started) catchTrick(player);
+    trickPtr = null;
+  }
 }
 app.canvas.addEventListener('pointerdown', onDown);
 window.addEventListener('pointermove', onMove);
@@ -171,10 +228,12 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyA' || e.code === 'ArrowLeft') pressLeft(player);
   if (e.code === 'Space') { e.preventDefault(); pressRight(player); }
   if (e.code === 'KeyF') testFall();
+  if (e.code === 'KeyK') startTrick(player, 'kickflip');     // K down = flick, K up = catch
 });
 window.addEventListener('keyup', (e) => {
   keyDown.delete(e.code);
   if (e.code === 'KeyA' || e.code === 'ArrowLeft') releaseLeft(player);
+  if (e.code === 'KeyK') catchTrick(player);
   if (e.code === 'Space' && player.crouching) {
     pop(player, e.shiftKey ? config.perfectSnap + 200 : (config.cleanSnap + config.perfectSnap) / 2, 0);
   }
@@ -184,6 +243,7 @@ window.addEventListener('keyup', (e) => {
 const hints = (() => {
   const el = document.getElementById('hint');
   let pushes = 0, shownBrake = false, braked = false, ollies = 0, shownOllie = false;
+  let landed = 0, shownFlip = false, flips = 0;
   const show = (txt) => { el.textContent = txt; el.classList.add('show'); };
   const hide = () => el.classList.remove('show');
   setTimeout(() => { if (pushes === 0) show('Tryck på vänster sida för att pusha'); }, 900);
@@ -201,6 +261,14 @@ const hints = (() => {
       }
     },
     onOllie() { ollies++; if (shownOllie) hide(); },
+    onOllieLanded() {
+      landed++;
+      if (landed === 4 && !shownFlip && flips === 0) {
+        shownFlip = true;
+        setTimeout(() => { if (flips === 0) show('I luften: tumme ner, svep ← och släpp när brädan vänt = kickflip'); }, 600);
+      }
+    },
+    onTrick() { flips++; if (shownFlip) hide(); },
     tick() {
       if (player.brakeAmount > 0.5 && !braked) { braked = true; if (shownBrake) setTimeout(hide, 600); }
     },

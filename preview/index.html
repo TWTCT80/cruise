@@ -47,6 +47,13 @@
     #trick .stars { font-size: clamp(12px, 2.6vh, 18px); letter-spacing: 0.2em; opacity: 0.85; margin-top: 4px; }
     #trick .new { font-size: clamp(12px, 2.6vh, 16px); font-weight: 800; letter-spacing: 0.3em; color: #ffd79a; margin-bottom: 4px; }
     #trick.q-perfect .quality { color: #ffe2a6; }
+    #why {
+      position: fixed; left: 50%; top: 30%; transform: translate(-50%, 6px);
+      padding: 6px 14px; border-radius: 999px; background: #2a1f3366; color: #fff4e6;
+      font: 600 clamp(12px, 2.6vh, 16px)/1.2 -apple-system, system-ui, sans-serif; letter-spacing: 0.08em;
+      opacity: 0; transition: opacity 0.35s ease, transform 0.35s ease; pointer-events: none;
+    }
+    #why.show { opacity: 0.85; transform: translate(-50%, 0); }
     #trick.q-sloppy .quality { opacity: 0.65; }
     #trick.is-new .name { color: #ffe9c4; }
 
@@ -87,6 +94,7 @@
 <body>
   <div id="game"></div>
   <div id="hint"></div>
+  <div id="why"></div>
   <div id="trick"><div class="new">NEW!</div><div class="name"></div><div class="stars"></div><div class="quality"></div></div>
   <div id="rotate"><div><span class="phone">📱</span>Vänd telefonen</div></div>
   <div id="dev">

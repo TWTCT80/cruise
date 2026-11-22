@@ -108,7 +108,7 @@ export function createRenderer(app) {
   // --- secondary-motion state ---------------------------------------------
   const sm = {
     lean: spring(), crouch: spring(), swing: spring(), arms: spring(),
-    pitch: spring(), wobble: spring(), punch: spring(),
+    pitch: spring(), wobble: spring(), punch: spring(), flip: spring(),
     bump: spring(), bodyBump: spring(),
     head: null, hood: null, hem: null, pom: null,
     strings: [rope(5, 3.6, 0, 0), rope(5, 3.6, 0, 0)],
@@ -251,7 +251,7 @@ export function createRenderer(app) {
   // tail strike → nose high, front foot drags it level, slight nose-down
   // before the wheels meet the ground, then flat.
   function pitchTarget(p) {
-    if (!p.airborne) return 0;
+    if (!p.airborne || p.trick) return 0;      // a flipping board turns level
     const u = Math.min(1, p.airT / p.airDur);
     if (u < 0.08) return -0.85 * (u / 0.08);                       // tail snaps: nose ~50° up
     if (u < 0.42) { const k = (u - 0.08) / 0.34; return -0.85 * (1 - k * k * (3 - 2 * k)); } // front foot levels it
@@ -287,8 +287,32 @@ export function createRenderer(app) {
     g.circle(ha.x, ha.y, 4.5).fill({ color: PAL.skin });
   }
 
-  function drawBoard(g, spin, bump) {
+  // Kickflip roll: seen from the side the board turns around its long axis —
+  // edge → griptape face → edge with wheels up → underside → edge. Faked with
+  // a deck face whose height follows sin(roll) and trucks that swing with cos.
+  // glint = the grip catching the light as it comes face-up (the catch cue).
+  function drawRolledBoard(g, spin, bump, roll, glint) {
+    const c = Math.cos(roll), s = Math.sin(roll);
+    const yc = DECK_Y + bump + 0.5;
+    const hh = 1.6 + 10 * Math.abs(s);
+    const trucks = () => {
+      for (const wx of [-22, 22]) {
+        g.rect(wx - 6, yc + 6.5 * c - 2, 12, 4).fill({ color: PAL.truck });
+        g.ellipse(wx, yc + 10 * c, 5.5, 1.5 + 4 * Math.abs(c)).fill({ color: PAL.wheel });
+      }
+    };
+    if (s > 0) trucks();                                  // grip faces us: trucks behind
+    g.roundRect(-41, yc - hh, 82, hh * 2, Math.min(hh, 7)).fill({ color: s > 0 ? PAL.deck : PAL.deckSide });
+    if (s <= 0) {                                          // underside faces us: a darker graphic stripe + trucks in front
+      if (hh > 4) g.roundRect(-30, yc - hh * 0.35, 60, hh * 0.7, 3).fill({ color: PAL.deck, alpha: 0.35 });
+      trucks();
+    }
+    if (glint > 0) g.roundRect(-38, yc - hh - 1, 76, 2.4, 1.2).fill({ color: 0xffffff, alpha: glint });
+  }
+
+  function drawBoard(g, spin, bump, roll = 0, glint = 0) {
     g.clear();
+    if (Math.abs(Math.sin(roll)) > 0.01 || Math.cos(roll) < 0) return drawRolledBoard(g, spin, bump, roll, glint);
     for (const wx of [-22, 22]) {
       g.rect(wx - 6, -12, 12, 4).fill({ color: PAL.truck });
       g.circle(wx, -5.5, 5.5).fill({ color: PAL.wheel });
@@ -307,6 +331,7 @@ export function createRenderer(app) {
       .quadraticCurveTo(-38, y + 2, -30, y + 2)
       .closePath().fill({ color: PAL.deck });
     g.rect(-30, y + 1, 60, 1.5).fill({ color: PAL.deckSide });
+    if (glint > 0) g.roundRect(-38, y - 2.5, 76, 2.4, 1.2).fill({ color: 0xffffff, alpha: glint });
   }
 
   // --- bail poses (from the sprite sheet's bottom row) ----------------------
@@ -460,6 +485,12 @@ export function createRenderer(app) {
     let ok = null;
     if (p.airborne) {
       ok = ollieKeys(Math.min(1, p.airT / p.airDur));
+      // kickflip (reference photos): front foot flicks off the nose, both
+      // feet lift clear and the knees come up while the board turns below
+      const fk = sm.flip.v;
+      ok.gf += 6 * fk; ok.gb += 6 * fk; ok.crouch += 3 * fk;
+      const tr = p.trick;
+      if (tr) { const pr = tr.t / tr.dur; if (pr < 0.3) ok.fx += 10 * Math.sin(pr / 0.3 * Math.PI); }
       crouchT = ok.crouch;
       armT = ok.arms;
       leanT += ok.lean;
@@ -701,10 +732,15 @@ export function createRenderer(app) {
     const wobble = stepSpring(sm.wobble, 0, rdt, 70, 4);       // sloppy-landing wobble
     rider.rotation = -p.boardAngle + wobble * 0.05;           // physics: y up, screen: y down
     stepSpring(sm.pitch, pitchTarget(p), rdt || 1 / 60, 420, 30);
+    const tr = p.trick;
+    const flipping = !!(tr && !tr.caught);
+    const fk = stepSpring(sm.flip, flipping ? 1 : 0, rdt || 1 / 60, 260, 26);
     boardG.pivot.set(0, PIVOT_Y);
-    boardG.position.set(0, PIVOT_Y - Math.max(0, -sm.pitch.v) * 38);
+    boardG.position.set(0, PIVOT_Y - Math.max(0, -sm.pitch.v) * 38 + 12 * Math.max(0, fk));
     boardG.rotation = sm.pitch.v;
-    drawBoard(boardG, p.wheelSpin, sm.bump.v);
+    let glint = 0;
+    if (tr && !tr.released) glint = Math.max(0, 1 - Math.abs(tr.t - tr.dur) / 0.08);
+    drawBoard(boardG, p.wheelSpin, sm.bump.v, tr ? tr.roll : 0, glint);
     drawBody(bodyG, p, t, Math.min(dt || 1 / 60, 1 / 30));
     riderShadow.clear();
     drawLoose(p, riderY, t);
