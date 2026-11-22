@@ -13,7 +13,7 @@ import { createForeground } from './foreground.js';
 import { spring, stepSpring, spring2, stepSpring2, rope, stepRope } from './cloth.js';
 import { createFog, fogDensity } from './fog.js';
 import { musicPhase } from './music.js';
-import { FALL } from './player.js';
+import { FALL, TRICKS } from './player.js';
 
 // Rider colours — the only saturated colours in the frame. Per frame they are
 // shaded towards dusk (mood) and lightly hazed into the air (riderHaze), so the
@@ -490,7 +490,12 @@ export function createRenderer(app) {
       const fk = sm.flip.v;
       ok.gf += 6 * fk; ok.gb += 6 * fk; ok.crouch += 3 * fk;
       const tr = p.trick;
-      if (tr) { const pr = tr.t / tr.dur; if (pr < 0.3) ok.fx += 10 * Math.sin(pr / 0.3 * Math.PI); }
+      if (tr) {
+        const pr = tr.t / tr.dur, d = TRICKS[tr.id];
+        const kick = pr < 0.3 ? Math.sin(pr / 0.3 * Math.PI) : 0;
+        if (d.roll) ok.fx += 10 * kick;          // flips: front foot flicks off the nose
+        if (d.yaw) ok.bx -= 9 * kick;            // shove-its: back foot scoops the tail
+      }
       crouchT = ok.crouch;
       armT = ok.arms;
       leanT += ok.lean;
@@ -738,6 +743,8 @@ export function createRenderer(app) {
     boardG.pivot.set(0, PIVOT_Y);
     boardG.position.set(0, PIVOT_Y - Math.max(0, -sm.pitch.v) * 38 + 12 * Math.max(0, fk));
     boardG.rotation = sm.pitch.v;
+    // shove-it: seen from the side the board turns end-on and back
+    boardG.scale.x = tr ? Math.abs(Math.cos(tr.yaw)) + 0.24 * Math.abs(Math.sin(tr.yaw)) : 1;
     let glint = 0;
     if (tr && !tr.released) glint = Math.max(0, 1 - Math.abs(tr.t - tr.dur) / 0.08);
     drawBoard(boardG, p.wheelSpin, sm.bump.v, tr ? tr.roll : 0, glint);
