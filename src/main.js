@@ -1,8 +1,8 @@
 import { Application } from '../vendor/pixi.min.mjs';
-import { config, loadConfig } from './config.js';
-import { createPlayer, update, pressLeft, releaseLeft, pressRight, releaseRight, pop } from './player.js';
+import { config, loadConfig, NS } from './config.js';
+import { createPlayer, update, pressLeft, releaseLeft, pressRight, releaseRight, pop, bail } from './player.js';
 import { createRenderer } from './render.js';
-import { unlockAudio, updateAudio, seamClack, kickScuff, footOnDeck, popSound, landSound } from './audio.js';
+import { unlockAudio, updateAudio, seamClack, kickScuff, footOnDeck, popSound, landSound, fallSound } from './audio.js';
 import { landingChime } from './music.js';
 import { createDevPanel } from './devpanel.js';
 
@@ -29,7 +29,7 @@ player.onKickContact = () => {
 };
 
 // --- stats (feeds the trick book in M5) ------------------------------------
-const STATS_KEY = 'cruise.stats.v1';
+const STATS_KEY = NS + 'stats.v1';
 let stats = {};
 try { stats = JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch { stats = {}; }
 function record(trick, quality) {
@@ -81,8 +81,27 @@ player.onLand = (q, impact) => {
   else haptic(6);
 };
 
+// Bail: no popup, just a soft tumble. Counts as an attempt in the stats.
+player.onBailLand = (impact) => {
+  landSound(impact, 'Sloppy');
+  renderer.land(impact, 'Sloppy');
+  const s = stats.ollie || (stats.ollie = { attempts: 0, landed: 0, perfect: 0 });
+  s.attempts++;
+  try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch {}
+  haptic([10, 40, 10]);
+};
+player.onFallEvent = (kind) => {
+  fallSound(kind);
+  if (kind === 'body') haptic(20);
+};
+// test hook: fall now (or on the next landing if airborne)
+function testFall() {
+  if (player.airborne) player.bailNext = true;
+  else bail(player);
+}
+
 // --- dev panel -------------------------------------------------------------
-const dev = createDevPanel(() =>
+const dev = createDevPanel(testFall, () =>
   `speed ${player.speed.toFixed(0)}  fps ${app.ticker.FPS.toFixed(0)}  ·  snap ${lastSnap.speed.toFixed(0)} px/s ${lastSnap.angle.toFixed(0)}° → ${lastSnap.q}`);
 
 // --- input -----------------------------------------------------------------
@@ -151,6 +170,7 @@ window.addEventListener('keydown', (e) => {
   unlockAudio();
   if (e.code === 'KeyA' || e.code === 'ArrowLeft') pressLeft(player);
   if (e.code === 'Space') { e.preventDefault(); pressRight(player); }
+  if (e.code === 'KeyF') testFall();
 });
 window.addEventListener('keyup', (e) => {
   keyDown.delete(e.code);
@@ -220,7 +240,8 @@ app.ticker.add((ticker) => {
   while (acc >= STEP) {
     update(player, STEP);
     acc -= STEP;
-    checkSeams();
+    if (player.fall) { lastSeam.front = wheelSeam(1); lastSeam.back = wheelSeam(-1); }
+    else checkSeams();
   }
   time += dt;
 

@@ -76,7 +76,9 @@ export function updateAudio(p, dt = 1 / 60) {
   if (!ctx) return;
   updateMusic(p, dt);
   const t = ctx.currentTime;
-  const s = Math.min(1, p.speed / 900);
+  // during a bail the wheels you hear belong to the loose board
+  const wheels = p.fall ? (p.fall.loose ? p.fall.bv : p.speed) : p.speed;
+  const s = Math.min(1, wheels / 900);
   const vol = config.rollVolume;
   master.gain.setTargetAtTime(config.masterVolume, t, 0.05);
   rollGain.gain.setTargetAtTime(vol * (s > 0.005 ? 0.035 + 0.17 * s : 0), t, 0.12);
@@ -152,4 +154,32 @@ export function landSound(impact, quality) {
   burst({ freq: 380, dur: 0.09, gain: 0.05 + 0.04 * k, attack: 0.004 });
   setTimeout(() => burst({ freq: 320, dur: 0.06, gain: 0.03 }), 25);   // second truck
   if (quality === 'Sloppy') setTimeout(() => burst({ freq: 600, q: 0.8, dur: 0.22, gain: 0.04, type: 'bandpass', attack: 0.02 }), 40);
+}
+
+// Bail sounds — kept soft: it's a tumble, not a crash.
+export function fallSound(kind) {
+  if (!ctx) return;
+  switch (kind) {
+    case 'kick':   // board squirts out from under the feet
+      burst({ freq: 700, q: 2, dur: 0.07, gain: 0.05, type: 'bandpass', attack: 0.003 });
+      thump(110, 0.06, 0.05);
+      break;
+    case 'step':   // sneaker on asphalt
+      thump(58, 0.08, 0.035);
+      burst({ freq: 280, dur: 0.07, gain: 0.02, attack: 0.008 });
+      break;
+    case 'body':   // landing on the belly + a short slide
+      thump(42, 0.32, 0.13);
+      burst({ freq: 240, dur: 0.16, gain: 0.05, attack: 0.01 });
+      setTimeout(() => burst({ freq: 420, dur: 0.38, gain: 0.035, attack: 0.06 }), 60);
+      break;
+    case 'board':  // the board clatters back onto its wheels
+      thump(80, 0.08, 0.05);
+      burst({ freq: 850, q: 2.5, dur: 0.05, gain: 0.04, type: 'bandpass', attack: 0.002 });
+      break;
+    case 'mount':
+      footOnDeck();
+      setTimeout(footOnDeck, 70);
+      break;
+  }
 }

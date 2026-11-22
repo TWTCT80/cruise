@@ -26,6 +26,7 @@ export const DEFAULTS = {
   cleanAngle: 25,          // max degrees off vertical for Clean
   perfectAngle: 12,        // max degrees off vertical for Perfect
   hitstop: 0.06,           // seconds frozen on a Perfect landing
+  bailAngle: 45,           // PROVISIONAL: snaps more crooked than this bail on landing (90 = never)
 
   // --- terrain ---
   hillAmp: 1,             // multiplier for hill heights
@@ -64,7 +65,9 @@ export const DEFAULTS = {
   seamSpacing: 140,       // distance between sidewalk seams (clack)
 };
 
-const KEY = 'cruise.config.v1';
+// the /preview/ build keeps its own settings so tuning there never leaks into the main game
+export const NS = typeof location !== 'undefined' && location.pathname.includes('/preview/') ? 'cruise.preview.' : 'cruise.';
+const KEY = NS + 'config.v1';
 
 export const config = { ...DEFAULTS };
 
@@ -116,6 +119,7 @@ export const RANGES = {
   cleanAngle: [5, 60, 1],
   perfectAngle: [2, 40, 1],
   hitstop: [0, 0.2, 0.005],
+  bailAngle: [20, 90, 1],
   hillAmp: [0, 3, 0.05],
   hillLength: [0.3, 3, 0.05],
   baseViewHeight: [350, 1000, 10],

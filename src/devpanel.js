@@ -6,7 +6,7 @@ import { config, DEFAULTS, RANGES, saveConfig, resetConfig, diffFromDefaults } f
 import { OUTFIT_PRESETS, GARMENTS, garmentColor } from './outfit.js';
 import { VERSION } from './version.js';
 
-export function createDevPanel(getStats) {
+export function createDevPanel(onTestFall, getStats) {
   const el = document.getElementById('dev');
   const body = el.querySelector('.dev-body');
   const stats = el.querySelector('.dev-stats');
@@ -78,6 +78,7 @@ export function createDevPanel(getStats) {
 
   el.querySelector('[data-act=close]').onclick = () => toggle(false);
   el.querySelector('[data-act=reload]').onclick = () => location.reload();
+  el.querySelector('[data-act=fall]').onclick = () => { toggle(false); setTimeout(onTestFall, 250); };
   el.querySelector('[data-act=reset]').onclick = () => {
     resetConfig();
     for (const k of Object.keys(inputs)) refreshRow(k);
