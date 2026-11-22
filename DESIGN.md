@@ -152,7 +152,7 @@ Varje steg testas på telefonen och godkänns innan nästa.
 
 **Klart:** M1 godkänd. M2 ollie byggd och testad på telefon: gest (huk + snäpp uppåt), animation
 omgjord efter referensfoton (kroppen hoppar, grodhuk med knäna isär, smal stans vid toppen),
-landningsfeedback, popup med NEW!, statistik. Toms värden: `popVel` 375, `hangWindow` 205,
+landningsfeedback, popup med NEW!, statistik. Toms värden: `popVel` 375, `hangWindow` 65 (var 205), `maxSpeed` 1670,
 `perfectSnap` 2000. Förgrund = böljande kullar + helt svarta skyltar + buskar (finslipas senare).
 Service worker (network-first) + Uppdatera-knapp löser cache-problemet på telefonen.
 
@@ -160,7 +160,7 @@ Service worker (network-first) + Uppdatera-knapp löser cache-problemet på tele
 kastas ut brett vid popet och sjunker först efter landning. Mjukt fall byggt: vingla → snubbla av → dyk →
 magglid (mössan flyger av, brädan rullar iväg) → "…" → resa sig → lufsa ikapp (långa steg), plocka upp
 mössan → hoppa på. Utlösare provisorisk: snäpp > `bailAngle` 45°, dev-knappen "Testa fall", F-tangent.
-Broms: håller man kvar fingret längre än `brakeHold` (0,28 s) stannar sparkfoten i marken och bromsar i stället för att sparka klart (0,12 s var för kort – vanliga dutt avbröts).
+Broms (godkänd av Tom): håller man kvar fingret längre än `brakeHold` (0,28 s) stannar sparkfoten i marken och bromsar i stället för att sparka klart (0,12 s var för kort – vanliga dutt avbröts).
 Förhandsversioner testas på `/preview/` (kopia av en branch i `preview/` på main, egna inställningar).
 
 **Öppet i M2 att stämma av nästa gång:**

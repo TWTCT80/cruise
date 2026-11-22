@@ -12,14 +12,14 @@ export const DEFAULTS = {
   brakeDecel: 420,        // foot-brake deceleration
   brakeDelay: 0.18,       // hold left this long after a kick → foot brake
   brakeHold: 0.28,        // finger still down this long while the kicking foot is on the ground → it stays down and brakes
-  maxSpeed: 1300,
+  maxSpeed: 1670,
 
   // --- ollie ---
   popDistance: 26,         // px the finger must travel upward to pop
   popVel: 375,             // base take-off speed (world units/s)
   airGravity: 900,         // gravity in the air (lower than real = floatier)
   hangGravity: 0.45,       // gravity multiplier near the apex …
-  hangWindow: 205,         // … while |vertical speed| is below this
+  hangWindow: 65,          // … while |vertical speed| is below this
   airSlowmo: 0,            // 0 = off; >0 slows time mid-air (bell curve)
   minSnap: 250,            // px/s — slower snaps still pop, weakly
   cleanSnap: 700,          // px/s needed for Clean
