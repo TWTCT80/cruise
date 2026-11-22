@@ -2,7 +2,7 @@
 // Every slider edits `config` live. "Kopiera" copies the changed values as
 // JSON so they can be pasted back into config.js defaults.
 
-import { config, DEFAULTS, RANGES, saveConfig, resetConfig, diffFromDefaults } from './config.js';
+import { config, DEFAULTS, RANGES, saveConfig, resetConfig, diffFromDefaults, NS } from './config.js';
 import { OUTFIT_PRESETS, GARMENTS, garmentColor } from './outfit.js';
 import { VERSION } from './version.js';
 
@@ -99,7 +99,7 @@ export function createDevPanel(onTestFall, getStats) {
     el.classList.toggle('open', open);
   }
 
-  setInterval(() => { if (open) stats.textContent = `v ${VERSION} · ${getStats()}`; }, 200);
+  setInterval(() => { if (open) stats.textContent = `${NS.includes('preview') ? 'preview · ' : ''}v ${VERSION} · ${getStats()}`; }, 200);
 
   window.addEventListener('keydown', (e) => { if (e.key === 'd' || e.key === 'D') toggle(); });
 

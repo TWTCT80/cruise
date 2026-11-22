@@ -21,6 +21,7 @@ export function createPlayer() {
 
     holdingLeft: false,
     holdTime: 0,
+    kickCancels: 0,    // counts kicks turned into brakes (renderer blends the foot)
     braking: false,
     brakeAmount: 0,    // 0..1 eased, for animation + sound
 
@@ -142,6 +143,13 @@ export function update(p, dt) {
   // Holding after the kick has finished → drag the foot to brake.
   if (p.holdingLeft) {
     p.holdTime += dt;
+    // A press that is still held before the foot reaches the ground was a
+    // brake all along: drop the kick and go straight to braking.
+    if (p.pushing && !p.pushApplied && p.holdTime >= c.brakeHold) {
+      p.pushing = false; p.queuedPush = false;
+      p.braking = true;
+      p.kickCancels++;
+    }
     if (!p.pushing && p.holdTime > c.brakeDelay) p.braking = true;
   }
   p.brakeAmount += ((p.braking ? 1 : 0) - p.brakeAmount) * Math.min(1, dt * 10);
