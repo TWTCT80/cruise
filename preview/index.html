@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <title>Cruise</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cruise">
+  <meta name="theme-color" content="#f6d4b4">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <style>
+    :root { --ink: #3a2c4a; --paper: #fff6ee; }
+    html, body {
+      margin: 0; height: 100%; overflow: hidden; background: #f6d4b4;
+      touch-action: none; overscroll-behavior: none;
+      -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    #game, #game canvas { position: fixed; inset: 0; display: block; }
+
+    #hint {
+      position: fixed; left: max(24px, env(safe-area-inset-left)); bottom: max(28px, env(safe-area-inset-bottom));
+      padding: 10px 16px; border-radius: 999px;
+      background: rgba(255, 246, 238, 0.82); color: var(--ink);
+      font-size: 15px; font-weight: 600; letter-spacing: 0.01em;
+      box-shadow: 0 6px 24px rgba(58, 44, 74, 0.15);
+      opacity: 0; transform: translateY(8px);
+      transition: opacity .6s ease, transform .6s ease; pointer-events: none;
+    }
+    #hint.show { opacity: 1; transform: none; }
+
+    /* trick popup: big name, quality, stars — soft rise in, fade out */
+    #trick {
+      position: fixed; left: 50%; top: 18%; transform: translate(-50%, 10px) scale(0.92);
+      text-align: center; pointer-events: none; opacity: 0;
+      color: #fff8ef; text-shadow: 0 2px 18px rgba(40, 20, 30, 0.45);
+      transition: opacity .45s ease, transform .6s cubic-bezier(.2, 1.4, .4, 1);
+    }
+    #trick.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    #trick .name { font-size: clamp(30px, 7vh, 56px); font-weight: 800; letter-spacing: 0.02em; line-height: 1; }
+    #trick .quality { font-size: clamp(14px, 3.2vh, 22px); font-weight: 700; margin-top: 6px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.9; }
+    #trick .stars { font-size: clamp(12px, 2.6vh, 18px); letter-spacing: 0.2em; opacity: 0.85; margin-top: 4px; }
+    #trick .new { font-size: clamp(12px, 2.6vh, 16px); font-weight: 800; letter-spacing: 0.3em; color: #ffd79a; margin-bottom: 4px; }
+    #trick.q-perfect .quality { color: #ffe2a6; }
+    #trick.q-sloppy .quality { opacity: 0.65; }
+    #trick.is-new .name { color: #ffe9c4; }
+
+    #rotate {
+      position: fixed; inset: 0; display: none; place-items: center; text-align: center;
+      background: linear-gradient(#d79d8c, #fbe9d0); color: var(--paper);
+      font-size: 20px; font-weight: 700; z-index: 10;
+    }
+    #rotate .phone { font-size: 52px; display: block; margin-bottom: 12px; animation: tilt 2.4s ease-in-out infinite; }
+    @keyframes tilt { 0%,30% { transform: rotate(0) } 60%,100% { transform: rotate(-90deg) } }
+    @media (orientation: portrait) and (pointer: coarse) { #rotate { display: grid; } }
+
+    #dev {
+      position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 70vw); z-index: 20;
+      background: rgba(30, 22, 40, 0.92); color: #f4ecf7; font: 12px/1.3 ui-monospace, Menlo, monospace;
+      padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 12px 12px;
+      transform: translateX(105%); transition: transform .25s ease; overflow-y: auto;
+      touch-action: pan-y; box-sizing: border-box;
+    }
+    #dev.open { transform: none; }
+    .dev-head { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .dev-head button {
+      background: #4b3a5e; color: inherit; border: 0; border-radius: 6px; padding: 7px 10px; font: inherit;
+    }
+    .dev-stats { color: #ffd79a; margin-bottom: 8px; }
+    .dev-row { display: grid; grid-template-columns: 1fr 1.3fr 64px; gap: 8px; align-items: center; padding: 3px 0; }
+    .dev-row.changed .k { color: #ffb38a; }
+    .dev-row input { width: 100%; }
+    .dev-row .v { text-align: right; }
+    .dev-section { margin: 14px 0 6px; padding-top: 10px; border-top: 1px solid #4b3a5e; }
+    .dev-title { color: #ffd79a; font-weight: 700; margin-bottom: 6px; }
+    .dev-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+    .dev-presets button { background: #4b3a5e; color: inherit; border: 0; border-radius: 6px; padding: 7px 10px; font: inherit; }
+    .dev-swatch { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; color: #d9cce3; }
+    .dev-swatch span { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #fff4; display: inline-block; }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="hint"></div>
+  <div id="trick"><div class="new">NEW!</div><div class="name"></div><div class="stars"></div><div class="quality"></div></div>
+  <div id="rotate"><div><span class="phone">📱</span>Vänd telefonen</div></div>
+  <div id="dev">
+    <div class="dev-head">
+      <button data-act="close">Stäng</button>
+      <button data-act="copy">Kopiera ändringar</button>
+      <button data-act="reset">Återställ</button>
+      <button data-act="reload">Uppdatera</button>
+      <button data-act="fall">Testa fall</button>
+    </div>
+    <div class="dev-stats"></div>
+    <div class="dev-body"></div>
+  </div>
+  <script type="module" src="src/main.js"></script>
+  <script>
+    // network-first service worker so the phone always gets the newest build
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  </script>
+</body>
+</html>
