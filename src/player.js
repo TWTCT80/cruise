@@ -21,6 +21,7 @@ export function createPlayer() {
 
     holdingLeft: false,
     holdTime: 0,
+    kickCancels: 0,    // counts kicks turned into brakes (renderer blends the foot)
     braking: false,
     brakeAmount: 0,    // 0..1 eased, for animation + sound
 
@@ -35,12 +36,15 @@ export function createPlayer() {
     airDur: 0.9,       // estimated total airtime (for animation phases)
     popQuality: null,  // 'Perfect' | 'Clean' | 'Sloppy'
     slowmo: 1,         // time scale suggested by the sim (air slow-motion option)
+    popAngle: 0,
+    bailNext: false,   // test hook: the next landing bails
+    fall: null,        // bail state (see FALL below) — null while riding
   };
 }
 
 // Input hooks -------------------------------------------------------------
 export function pressLeft(p) {
-  if (p.airborne || p.crouching) return;       // no pushing mid-air or while winding up
+  if (p.fall || p.airborne || p.crouching) return;       // no pushing mid-air or while winding up
   p.holdingLeft = true;
   p.holdTime = 0;
   if (p.pushing) p.queuedPush = true;
@@ -63,7 +67,7 @@ function startPush(p) {
 
 // Right thumb down: crouch (only on the ground).
 export function pressRight(p) {
-  if (p.airborne) return false;
+  if (p.fall || p.airborne) return false;
   p.crouching = true;
   p.pushing = false; p.queuedPush = false;    // both feet on the board now
   p.holdingLeft = false; p.braking = false;
@@ -85,7 +89,7 @@ export function gradeSnap(speed, angleDeg) {
 
 // Snap upward = pop. speed in CSS px/s, angleDeg = deviation from straight up.
 export function pop(p, speed, angleDeg) {
-  if (p.airborne) return;
+  if (p.airborne || p.fall) return;
   const c = config;
   const q = gradeSnap(speed, angleDeg);
   const k = Math.max(0, Math.min(1, (speed - c.minSnap) / (c.perfectSnap * 1.3 - c.minSnap)));
@@ -101,12 +105,14 @@ export function pop(p, speed, angleDeg) {
   // rough airtime estimate (ignores the hang) — only used for pose phases
   p.airDur = Math.max(0.35, (2 * Math.max(60, p.vy)) / c.airGravity) * 1.08;
   p.popQuality = q;
+  p.popAngle = angleDeg;
   p.onPop?.(q, speed, angleDeg);
 }
 
 // Simulation --------------------------------------------------------------
 export function update(p, dt) {
   const c = config;
+  if (p.fall) return updateFall(p, dt);
   if (p.airborne) return updateAir(p, dt);
 
   const theta = angle(p.x);
@@ -137,6 +143,13 @@ export function update(p, dt) {
   // Holding after the kick has finished → drag the foot to brake.
   if (p.holdingLeft) {
     p.holdTime += dt;
+    // A press that is still held before the foot reaches the ground was a
+    // brake all along: drop the kick and go straight to braking.
+    if (p.pushing && !p.pushApplied && p.holdTime >= c.brakeHold) {
+      p.pushing = false; p.queuedPush = false;
+      p.braking = true;
+      p.kickCancels++;
+    }
     if (!p.pushing && p.holdTime > c.brakeDelay) p.braking = true;
   }
   p.brakeAmount += ((p.braking ? 1 : 0) - p.brakeAmount) * Math.min(1, dt * 10);
@@ -194,6 +207,147 @@ function updateAir(p, dt) {
     p.speed = Math.max(0, p.vx / Math.max(0.5, Math.cos(theta)));
     if (p.popQuality === 'Sloppy') p.speed *= 0.93;
     p.boardAngle = groundTheta;
+    // PROVISIONAL bail rule until M3 brings real fail conditions: a very
+    // crooked snap (or the test hook) loses the board on landing
+    if (p.bailNext || p.popAngle > c.bailAngle) {
+      p.bailNext = false;
+      p.onBailLand?.(impact);
+      bail(p);
+      return;
+    }
     p.onLand?.(p.popQuality, impact);
+  }
+}
+
+// Bail (motion from the sprite sheet, shortened) ---------------------------
+// wobble on the board → stumble off in a few running steps (the board shoots
+// ahead) → dive → belly slide (the beanie flies off) → lie still with a "…"
+// → get up → jog to the board (picking up the beanie on the way) → hop on.
+export const FALL = { wobble: 0.32, run: 0.42, dive: 0.26, slide: 0.38, lie: 0.75, up: 0.6, mount: 0.26 };
+const BOARD_FRICTION = 700;
+const G = 900;
+
+export function bail(p) {
+  if (p.fall || p.airborne) return;
+  p.pushing = false; p.queuedPush = false; p.holdingLeft = false;
+  p.braking = false; p.brakeAmount = 0; p.crouching = false;
+  p.fall = {
+    phase: 'wobble', t: 0, total: 0,
+    v0: p.speed, rv: p.speed,           // rider's ground speed
+    runV: Math.max(170, Math.min(p.speed, 360)),
+    loose: false, bx: p.x, bv: 0, by: 0, bvy: 0, brot: 0,
+    cap: null, stepPhase: 0,
+  };
+  p.onBail?.();
+}
+
+function updateFall(p, dt) {
+  const f = p.fall;
+  const ev = (k) => p.onFallEvent?.(k);
+  f.t += dt; f.total += dt;
+  const next = (ph) => { f.phase = ph; f.t = 0; };
+
+  switch (f.phase) {
+    case 'wobble':
+      f.rv += (f.runV - f.rv) * Math.min(1, dt * 3);
+      f.bx = p.x;
+      if (f.t >= FALL.wobble) {
+        next('run');
+        f.loose = true; f.bv = f.rv + 450; f.bvy = 170; f.by = 0;   // squirts out ahead, clear of the dive
+        ev('kick');
+      }
+      break;
+    case 'run': {
+      f.rv += (f.runV - f.rv) * Math.min(1, dt * 4);
+      const before = Math.floor(f.stepPhase);
+      f.stepPhase += dt * 6.8;                 // ~3.4 strides/s
+      if (Math.floor(f.stepPhase) !== before) ev('step');
+      if (f.t >= FALL.run) {
+        next('dive');
+        f.cap = { x: p.x + 6, y: height(p.x) + 100, vx: f.rv * 0.55 + 30, vy: 240, rot: 0, landed: false };
+      }
+      break;
+    }
+    case 'dive':
+      if (f.t >= FALL.dive) { next('slide'); ev('body'); }
+      break;
+    case 'slide':
+      f.rv = Math.max(0, f.rv - 950 * dt);
+      if (f.t >= FALL.slide) { next('lie'); f.rv = 0; }
+      break;
+    case 'lie':
+      if (f.t >= FALL.lie) next('up');
+      break;
+    case 'up':
+      if (f.t >= FALL.up) { next('jog'); f.stepPhase = 0; }
+      break;
+    case 'jog': {
+      const d = f.bx - 4 - p.x;
+      f.rv += (Math.min(210, Math.max(60, d * 3)) - f.rv) * Math.min(1, dt * 5);
+      const before = Math.floor(f.stepPhase);
+      f.stepPhase += dt * 3.1;                 // long, loping strides
+      if (Math.floor(f.stepPhase) !== before) ev('step');
+      if (f.cap && f.cap.landed && p.x >= f.cap.x - 8) { f.cap = null; ev('cap'); }
+      if (d <= 0) { next('mount'); }
+      break;
+    }
+    case 'mount': {
+      const d = f.bx - p.x;
+      f.rv = d / Math.max(0.05, FALL.mount - f.t);   // glide onto the board (it may still be rolling)
+      if (f.t >= FALL.mount) {
+        p.x = f.bx; p.speed = Math.max(90, f.bv); p.fall = null;
+        p.boardAngle = angle(p.x);
+        ev('mount');
+        return;
+      }
+      break;
+    }
+  }
+
+  const theta = angle(p.x);
+  p.x += f.rv * Math.cos(theta) * dt;
+  p.distance += f.rv * dt;
+  const prev = p.speed;
+  p.speed = f.rv;
+  p.accel += ((p.speed - prev) / Math.max(dt, 1e-4) - p.accel) * Math.min(1, dt * 6);
+  p.boardAngle += (theta - p.boardAngle) * Math.min(1, dt * 10);
+
+  // the loose board: a little hop and tumble, then rolls out and stops
+  if (f.loose) {
+    const bt = angle(f.bx);
+    f.bx += f.bv * Math.cos(bt) * dt;
+    f.bv = Math.max(0, f.bv - BOARD_FRICTION * dt);
+    p.wheelSpin += (f.bv * dt) / 7;
+    if (f.by > 0 || f.bvy > 0) {
+      f.bvy -= G * dt;
+      f.by += f.bvy * dt;
+      const tgt = f.bvy > 0 ? -0.9 : 0.12;
+      f.brot += (tgt - f.brot) * Math.min(1, dt * 9);
+      if (f.by <= 0) {
+        f.by = 0;
+        if (-f.bvy > 90) { f.bvy = -f.bvy * 0.3; ev('board'); }
+        else f.bvy = 0;
+      }
+    } else f.brot += (0 - f.brot) * Math.min(1, dt * 10);
+  }
+
+  // the beanie
+  const c = f.cap;
+  if (c) {
+    if (!c.landed) {
+      c.vy -= G * dt;
+      c.x += c.vx * dt; c.y += c.vy * dt;
+      c.rot += 7 * dt;
+      const gy = height(c.x) + 3;
+      if (c.y <= gy && c.vy < 0) {
+        c.y = gy;
+        if (-c.vy > 140) { c.vy = -c.vy * 0.25; c.vx *= 0.5; }
+        else { c.landed = true; c.vy = 0; }
+      }
+    } else {
+      c.x += c.vx * dt; c.vx *= 1 - Math.min(1, dt * 6);
+      c.y = height(c.x) + 3;
+      c.rot += (Math.round(c.rot / (2 * Math.PI)) * 2 * Math.PI - c.rot) * Math.min(1, dt * 10);
+    }
   }
 }

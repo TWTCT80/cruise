@@ -13,13 +13,14 @@ import { createForeground } from './foreground.js';
 import { spring, stepSpring, spring2, stepSpring2, rope, stepRope } from './cloth.js';
 import { createFog, fogDensity } from './fog.js';
 import { musicPhase } from './music.js';
+import { FALL } from './player.js';
 
 // Rider colours — the only saturated colours in the frame. Per frame they are
 // shaded towards dusk (mood) and lightly hazed into the air (riderHaze), so the
 // rider sits *in* the atmosphere instead of on top of it.
 // Garment colours come from the outfit sliders (outfit.js).
 const RIDER = {
-  string: 0xf4efe6, skin: 0xc98a6a, shoe: 0xf8f2ea,
+  string: 0xf4efe6, skin: 0xc98a6a, shoe: 0xf8f2ea, hair: 0x4a3426,
   deck: 0x3a2e39, deckSide: 0xe76f51, wheel: 0xfbeedc, truck: 0xa79a9e,
 };
 const WARM_RIM = 0xffb27a;
@@ -92,7 +93,14 @@ export function createRenderer(app) {
     g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
     return Texture.from(c);
   })();
-  world.addChild(groundG, lampGlows, fog.back, riderShadow, rider, fog.front);
+  // bail: the board and the beanie leave the rider and live in the world
+  const loose = new Container();
+  const looseBoard = new Graphics();
+  const capG = new Graphics();
+  loose.addChild(looseBoard, capG);
+  loose.filters = [riderBlur];
+  const bubbleG = new Graphics();
+  world.addChild(groundG, lampGlows, fog.back, riderShadow, rider, loose, bubbleG, fog.front);
   stage.addChild(atm.back, far, atm.haze[0], mid, atm.haze[1], town, atm.haze[2], world, fgLayer.container, atm.front);
 
   const cam = { look: 0, y: 0, zoom: 1, init: false, scroll: 0, lastX: null };
@@ -215,13 +223,15 @@ export function createRenderer(app) {
   // fx/bx: front/back foot along the deck · gf/gb: foot lift off the deck ·
   // hipX: hip shift forward · lean: torso lean.
   const OLLIE_KEYS = [
-    [0.00, { crouch: -6, arms: 0.30, fx: 15, bx: -20, gf: 0, gb: 0, hipX: -2, lean: 0.04 }], // 2. pop: legs extend, back foot on tail
-    [0.12, { crouch: -9, arms: 0.40, fx: 18, bx: -23, gf: 0, gb: 0, hipX: 0, lean: 0.02 }],
-    [0.30, { crouch: 7, arms: 0.75, fx: 22, bx: -20, gf: 3, gb: 4, hipX: 2, lean: 0.03 }],  // 3. front foot drags to the nose
-    [0.50, { crouch: 14, arms: 0.92, fx: 18, bx: -18, gf: 9, gb: 10, hipX: 0, lean: 0.08 }], // 4. apex: frog squat, knees spread, feet float
-    [0.68, { crouch: 12, arms: 0.88, fx: 17, bx: -18, gf: 6, gb: 6, hipX: 0, lean: 0.06 }],
-    [0.88, { crouch: 1, arms: 0.6, fx: 16, bx: -18, gf: 0, gb: 0, hipX: 0, lean: 0.02 }],    // 5. legs reach down
-    [1.00, { crouch: 3, arms: 0.45, fx: 15, bx: -17, gf: 0, gb: 0, hipX: 0, lean: 0.03 }],
+    // arms: from the sprite sheet — thrown out wide AT the pop and kept wide
+    // through the whole jump; they only settle after the landing
+    [0.00, { crouch: -6, arms: 0.80, fx: 15, bx: -20, gf: 0, gb: 0, hipX: -2, lean: 0.16 }], // 2. pop: legs extend, back foot on tail, chest forward
+    [0.12, { crouch: -9, arms: 0.95, fx: 18, bx: -23, gf: 0, gb: 0, hipX: 0, lean: 0.13 }],
+    [0.30, { crouch: 7, arms: 1.0, fx: 22, bx: -20, gf: 3, gb: 4, hipX: 2, lean: 0.07 }],    // 3. front foot drags to the nose
+    [0.50, { crouch: 14, arms: 1.0, fx: 18, bx: -18, gf: 9, gb: 10, hipX: 0, lean: 0.08 }],  // 4. apex: knees up, feet float
+    [0.68, { crouch: 12, arms: 1.0, fx: 17, bx: -18, gf: 6, gb: 6, hipX: 0, lean: 0.06 }],
+    [0.88, { crouch: 1, arms: 0.95, fx: 16, bx: -18, gf: 0, gb: 0, hipX: 0, lean: 0.02 }],   // 5. legs reach down, arms still wide
+    [1.00, { crouch: 3, arms: 0.9, fx: 15, bx: -17, gf: 0, gb: 0, hipX: 0, lean: 0.03 }],
   ];
   function ollieKeys(u) {
     let i = 0;
@@ -299,8 +309,117 @@ export function createRenderer(app) {
     g.rect(-30, y + 1, 60, 1.5).fill({ color: PAL.deckSide });
   }
 
+  // --- bail poses (from the sprite sheet's bottom row) ----------------------
+  // During a fall the whole figure is drawn in its usual frame and then
+  // rotated around the hip (bodyG pivot), so a dive/belly slide is the same
+  // skeleton tipped forward. Feet are given relative to the hip.
+  const HX = 2, HY = DECK_Y - 54;
+  const fp = { rot: 0, hipH: 69, lean: 0, fx: 13, fy: 51, bx: -19, by: 51, bu: 0.35, bl: 0.1, fu: -0.25, fl: 0.35 };
+  const FP_KEYS = Object.keys(fp);
+  const UP_KEYS = [
+    [0.0, { rot: 1.46, hipH: 15, lean: 0, fx: -6, fy: 58, bx: -16, by: 54, bu: 2.85, bl: 3.0, fu: 2.65, fl: 2.9 }],
+    [0.4, { rot: 0.95, hipH: 28, lean: 0, fx: 6, fy: 44, bx: -12, by: 52, bu: 1.0, bl: 0.95, fu: 0.9, fl: 0.9 }],  // push up off the hands
+    [1.0, { rot: 0.04, hipH: 50, lean: 0.1, fx: 10, fy: 47, bx: -10, by: 47, bu: 0.4, bl: 0.6, fu: -0.2, fl: 0.1 }],
+  ];
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const ease = (k) => k * k * (3 - 2 * k);
+
+  function fallTarget(p, t) {
+    const f = p.fall;
+    const u = (d) => Math.min(1, f.t / d);
+    const phi = f.stepPhase * Math.PI;           // two steps per stride
+    const stride = (amp, lift, hipH, shift) => ({
+      fx: shift + amp * Math.sin(phi), fy: hipH - 3 - lift * Math.max(0, Math.cos(phi)),
+      bx: shift - amp * Math.sin(phi), by: hipH - 3 - lift * Math.max(0, -Math.cos(phi)),
+    });
+    switch (f.phase) {
+      case 'wobble': {                            // loses balance on the board: leans back, arms windmill
+        const k = u(FALL.wobble);
+        const hipH = 64 - 7 * Math.sin(k * Math.PI);
+        return { rot: 0, hipH, lean: -0.3 * Math.sin(k * Math.PI * 1.2) + 0.2 * k,
+          fx: 13, fy: hipH - 18, bx: -19, by: hipH - 18,
+          bu: 1.2 + 0.7 * Math.sin(t * 13), bl: 1.5 + 0.7 * Math.sin(t * 13), fu: -1.3 - 0.6 * Math.sin(t * 13 + 1.3), fl: -1.5 - 0.6 * Math.sin(t * 13 + 1.3) };
+      }
+      case 'run': {                               // stumbles off in running steps, reaching forward
+        const hipH = 56 - 3 * Math.abs(Math.sin(phi));
+        return { rot: 0.16, hipH, lean: 0.2, ...stride(15, 10, hipH, 9),
+          bu: 1.25 + 0.35 * Math.sin(phi), bl: 1.75 + 0.35 * Math.sin(phi), fu: 0.75 - 0.4 * Math.sin(phi), fl: 1.35 - 0.4 * Math.sin(phi) };
+      }
+      case 'dive': {                              // launches forward, legs trailing, arms out in front
+        const k = ease(u(FALL.dive));
+        return { rot: 0.2 + 1.26 * k, hipH: 54 + 14 * Math.sin(k * Math.PI) - 39 * k, lean: 0.1 * (1 - k),
+          fx: -4, fy: 58, bx: -16, by: 55, bu: 2.45, bl: 2.65, fu: 2.2, fl: 2.5 };
+      }
+      case 'slide':
+      case 'lie': {                               // flat on the belly, feet up a little, arms ahead
+        const br = f.phase === 'lie' ? Math.sin(t * 2.2) * 0.7 : 0;
+        return { ...UP_KEYS[0][1], hipH: 15 + br };
+      }
+      case 'up': {
+        const k = u(FALL.up);
+        const i = k < UP_KEYS[1][0] ? 0 : 1;
+        const [k0, a] = UP_KEYS[i], [k1, b] = UP_KEYS[i + 1];
+        const e = ease((k - k0) / (k1 - k0));
+        const o = {};
+        for (const key of FP_KEYS) o[key] = lerp(a[key], b[key], e);
+        return o;
+      }
+      case 'jog': {                               // lopes back to the board: long, loose strides
+        const hipH = 51 + 5 * Math.abs(Math.cos(phi));            // bobs: high mid-stride, sinks as a foot lands
+        return { rot: 0.08, hipH, lean: 0.16 + 0.05 * Math.sin(2 * phi), ...stride(20, 12, hipH, 4),
+          bu: 0.85 * Math.sin(phi), bl: 0.85 * Math.sin(phi) + 1.1, fu: -0.85 * Math.sin(phi), fl: -0.85 * Math.sin(phi) + 1.1 };
+      }
+      case 'mount': {                             // small hop back onto the deck
+        const k = ease(u(FALL.mount));
+        const hipH = lerp(54, 67, k) + 12 * Math.sin(k * Math.PI);
+        return { rot: 0.06 * (1 - k), hipH, lean: 0.06,
+          fx: lerp(8, 13, k), fy: hipH - lerp(3, 18, k) - 8 * Math.sin(k * Math.PI),
+          bx: lerp(-8, -19, k), by: hipH - lerp(3, 18, k) - 10 * Math.sin(k * Math.PI),
+          bu: lerp(0.6, 0.35, k), bl: lerp(0.7, 0.1, k), fu: lerp(-0.5, -0.25, k), fl: lerp(-0.3, 0.35, k) };
+      }
+    }
+    return fp;
+  }
+
+  // body-frame point → world (for the "…" bubble)
+  function bodyToWorld(x, y, p, riderY) {
+    const r = bodyG.rotation, c = Math.cos(r), s = Math.sin(r);
+    const px = bodyG.pivot.x, py = bodyG.pivot.y;
+    const bx = (x - px) * c - (y - py) * s + bodyG.position.x;
+    const by = (x - px) * s + (y - py) * c + bodyG.position.y;
+    const R = rider.rotation, C = Math.cos(R), S = Math.sin(R);
+    return { x: p.x + bx * C - by * S, y: riderY + bx * S + by * C };
+  }
+
+  function drawBeanie(g, hx, hy, pomX, pomY) {
+    g.moveTo(hx - 12, hy - 1)
+      .quadraticCurveTo(hx - 11, hy - 17, hx + 1, hy - 17)
+      .quadraticCurveTo(hx + 12, hy - 16, hx + 12, hy - 2)
+      .closePath().fill({ color: PAL.beanie });
+    g.roundRect(hx - 13, hy - 4, 26, 5, 2.5).fill({ color: PAL.beanieDark });
+    g.moveTo(hx - 4, hy - 16).lineTo(pomX, pomY).stroke({ width: 3, color: PAL.beanie, cap: 'round' });
+    g.circle(pomX, pomY, 4.2).fill({ color: PAL.beanie });
+  }
+
+  let afterLand = 9;
+  let kickCancels = 0, backFrom = null, backBlend = 0, lastBack = null;          // seconds since the last landing (arms settle)
+  let lastHead = { x: 0, y: 0 };
+
   function drawBody(g, p, t, dt) {
     g.clear();
+    const f = p.fall;
+    if (f) {
+      const tg = fallTarget(p, t);
+      const run = f.phase === 'run' || f.phase === 'jog';
+      const k = 1 - Math.exp(-dt * (run ? 30 : f.phase === 'mount' ? 22 : 13));
+      for (const key of FP_KEYS) fp[key] += (tg[key] - fp[key]) * k;
+      bodyG.pivot.set(HX, HY);
+      bodyG.position.set(HX, -fp.hipH);
+      bodyG.rotation = fp.rot;
+    } else {
+      bodyG.pivot.set(0, 0); bodyG.position.set(0, 0); bodyG.rotation = 0;
+    }
+    afterLand += dt;
     const push = p.pushing ? p.pushT : -1;
     const brake = p.brakeAmount;
     // breathe in time with the music: two breaths per chord (falls back to a
@@ -308,11 +427,13 @@ export function createRenderer(app) {
     const mp = musicPhase();
     const breathe = (mp === null ? Math.sin(t * 1.6) : Math.sin(mp * Math.PI * 4 - Math.PI / 2)) * 1.4;
 
-    // External forces in the rider's local frame.
+    // External forces in the body's local frame.
     const G = 900;
-    const rot = -p.boardAngle;               // same rotation as the rider container
+    const rot = -p.boardAngle + (f ? fp.rot : 0);   // rider container + body tilt
     const gx = G * Math.sin(rot), gy = G * Math.cos(rot);
-    const wind = -p.speed;                     // head-wind
+    const wr = f ? fp.rot : 0;
+    const wind = -p.speed * Math.cos(wr);           // head-wind, turned into the body frame
+    const windY = p.speed * Math.sin(wr);
     const inertia = -p.accel * 0.6;
     const flutter = (f, ph) => Math.sin(t * f + ph) * (0.25 + Math.min(1, p.speed / 700)) ;
 
@@ -333,7 +454,9 @@ export function createRenderer(app) {
     let armT = 0;                                   // 0 relaxed · 0.6 out · 1 up/wide
     crouchT += 9 * p.crouchAmt;                     // 1. slight bend, lean in
     leanT += 0.1 * p.crouchAmt;
-    armT += 0.08 * p.crouchAmt;
+    armT += 0.22 * p.crouchAmt;                     // arms already lift a little (sheet frame 2)
+    // after a landing the arms stay out and sink slowly (sheet frames 8–12)
+    if (!p.airborne) armT = Math.max(armT, 0.9 * Math.exp(-afterLand * 2.2));
     let ok = null;
     if (p.airborne) {
       ok = ollieKeys(Math.min(1, p.airT / p.airDur));
@@ -344,8 +467,13 @@ export function createRenderer(app) {
     const arms = stepSpring(sm.arms, armT, dt, 120, 13);
     // stay more upright than the board on slopes, like a real rider
     leanT -= (-p.boardAngle) * 0.6;
-    const lean = stepSpring(sm.lean, leanT, dt, 140, 14);
-    const crouch = p.airborne ? stepSpring(sm.crouch, crouchT, dt, 300, 24) : stepSpring(sm.crouch, crouchT, dt, 170, 16);
+    let lean = stepSpring(sm.lean, leanT, dt, 140, 14);
+    let crouch = p.airborne ? stepSpring(sm.crouch, crouchT, dt, 300, 24) : stepSpring(sm.crouch, crouchT, dt, 170, 16);
+    if (f) {   // the fall pose drives the body; keep the springs in step for a seamless exit
+      lean = sm.lean.v = fp.lean; sm.lean.vel = 0;
+      crouch = sm.crouch.v = 0; sm.crouch.vel = 0;
+      sm.arms.v = 0; sm.arms.vel = 0;
+    }
 
     // Seam bumps: board jolts, knees absorb with a softer lagging spring.
     const bump = stepSpring(sm.bump, 0, dt, 900, 28);
@@ -359,9 +487,13 @@ export function createRenderer(app) {
     const onDeck = (x, y) => ({ x: x * pc - (y - PIVOT_Y) * ps, y: PIVOT_Y - liftOff + x * ps + (y - PIVOT_Y) * pc });
     // in the air each foot follows its own path along the deck (back foot on
     // the tail, front foot sliding towards the nose) and may lift off it
-    const front = ok ? onDeck(ok.fx, DECK_Y - 3 - ok.gf) : onDeck(15, DECK_Y - 3 + bump);
+    let front = ok ? onDeck(ok.fx, DECK_Y - 3 - ok.gf) : onDeck(15, DECK_Y - 3 + bump);
     let back = ok ? onDeck(ok.bx, DECK_Y - 3 - ok.gb) : onDeck(-17, DECK_Y - 3 + bump);
-    if (push >= 0) {
+    if (f) {
+      hip.x = HX; hip.y = HY;
+      front = { x: HX + fp.fx, y: HY + fp.fy };
+      back = { x: HX + fp.bx, y: HY + fp.by };
+    } else if (push >= 0) {
       const ground = 2;
       if (push < 0.3) {
         const u = push / 0.3;
@@ -377,6 +509,17 @@ export function createRenderer(app) {
     } else if (brake > 0.01) {
       back = { x: -17 - 29 * brake, y: (DECK_Y - 3) + (2 - DECK_Y + 3) * brake };
     }
+    // a kick that turned into a brake: glide the foot from where it was
+    if (p.kickCancels !== kickCancels) {
+      kickCancels = p.kickCancels;
+      if (lastBack) { backFrom = { ...lastBack }; backBlend = 1; }
+    }
+    if (backBlend > 0 && !f) {
+      const e = ease(backBlend);
+      back = { x: lerp(back.x, backFrom.x, e), y: lerp(back.y, backFrom.y, e) };
+      backBlend = Math.max(0, backBlend - dt / 0.16);
+    }
+    lastBack = back;
 
     const shoulder = { x: hip.x + Math.sin(lean) * 40 + 3, y: hip.y - Math.cos(lean) * 40 };
 
@@ -395,10 +538,10 @@ export function createRenderer(app) {
     stepSpring2(sm.hood, shoulder.x - 7, shoulder.y + 1, wind * 0.05 + inertia * 0.05, 0, dt, 140, 9);
     // back hem of the hoodie flares in the head-wind and flutters
     const hemFx = wind * 1.5 + inertia * 0.5 + flutter(11, 0) * 260;
-    const hemFy = -p.speed * 0.45 + flutter(13, 1.7) * 140;
+    const hemFy = -p.speed * 0.45 + windY * 1.5 + flutter(13, 1.7) * 140 + (f ? gy * 0.15 : 0);
     stepSpring2(sm.hem, hip.x - 10, hip.y + 9, hemFx, hemFy, dt, 150, 10);
     // pompom on a springy beanie tip
-    stepSpring2(sm.pom, head.x - 5, head.y - 21, wind * 0.55 + inertia * 0.5 + gx * 0.1, gy * 0.12, dt, 90, 6);
+    stepSpring2(sm.pom, head.x - 5, head.y - 21, wind * 0.55 + inertia * 0.5 + gx * 0.1, gy * 0.12 + windY * 0.55, dt, 90, 6);
     { // keep the pompom on a short tether so it never stretches into an antenna
       const ax = head.x - 4, ay = head.y - 16, max = 7;
       const dx = sm.pom.x - ax, dy = sm.pom.y - ay, d = Math.hypot(dx, dy);
@@ -408,19 +551,23 @@ export function createRenderer(app) {
     // drawstrings
     for (let i = 0; i < 2; i++) {
       const ax = shoulder.x + 6 + i * 3, ay = shoulder.y + 7;
-      stepRope(sm.strings[i], ax, ay, gx + wind * 1.1 + inertia + flutter(17 + i * 3, i) * 220, gy, Math.min(dt, 1 / 30));
+      stepRope(sm.strings[i], ax, ay, gx + wind * 1.1 + inertia + flutter(17 + i * 3, i) * 220, gy + windY * 1.1, Math.min(dt, 1 / 30));
     }
 
     const swingT = push >= 0 ? Math.sin(Math.PI * 2 * push) * 0.6 : Math.sin(t * 1.3) * 0.05;
     const swing = stepSpring(sm.swing, swingT, dt, 90, 9);
 
+    // arms: 1 = thrown out wide, fore and aft (sheet: horizontal, a touch up)
+    let bu = lerp(0.35 + swing - brake * 0.6, 1.9, arms);
+    let bl = lerp(0.1 + swing * 0.5, bu * 0.92, arms);
+    let fu = lerp(-0.25 - swing * 0.8 + brake * 0.5, -1.85, arms);
+    let fl = lerp(0.35 - swing * 0.4, fu * 0.85, arms);
+    if (f) { bu = fp.bu; bl = fp.bl; fu = fp.fu; fl = fp.fl; }
     // back arm
-    const lerp = (a, b, t) => a + (b - a) * t;
-    const bu = lerp(0.35 + swing - brake * 0.6, 2.45, arms);
-    arm(g, shoulder, bu, lerp(0.1 + swing * 0.5, bu * 0.92, arms), PAL.hoodieDark);
+    arm(g, shoulder, bu, bl, PAL.hoodieDark);
     // back leg
     // in the air the knees spread apart (frog squat): the back knee points to the tail
-    leg(g, hip, back, PAL.pantsDark, p.airborne ? -1 : 1);
+    leg(g, hip, back, PAL.pantsDark, p.airborne && !f ? -1 : 1);
     // front leg — drawn before the torso so the hoodie hangs over the thighs
     leg(g, hip, front, PAL.pants);
     // torso: hoodie with a free-moving back hem
@@ -446,17 +593,56 @@ export function createRenderer(app) {
     // neck + head
     g.moveTo(shoulder.x + 1, shoulder.y + 2).lineTo(head.x, head.y + 8).stroke({ width: 7, color: PAL.skin, cap: 'round' });
     g.circle(head.x, head.y, 11).fill({ color: PAL.skin });
-    // beanie + pompom
-    g.moveTo(head.x - 12, head.y - 1)
-      .quadraticCurveTo(head.x - 11, head.y - 17, head.x + 1, head.y - 17)
-      .quadraticCurveTo(head.x + 12, head.y - 16, head.x + 12, head.y - 2)
-      .closePath().fill({ color: PAL.beanie });
-    g.roundRect(head.x - 13, head.y - 4, 26, 5, 2.5).fill({ color: PAL.beanieDark });
-    g.moveTo(head.x - 4, head.y - 16).lineTo(sm.pom.x, sm.pom.y).stroke({ width: 3, color: PAL.beanie, cap: 'round' });
-    g.circle(sm.pom.x, sm.pom.y, 4.2).fill({ color: PAL.beanie });
+    lastHead = { x: head.x, y: head.y };
+    if (f && f.cap) {
+      // beanie is off: messy hair
+      g.moveTo(head.x - 3, head.y - 1)
+        .arc(head.x, head.y, 11.8, Math.PI - 0.45, Math.PI * 2 - 0.25)
+        .quadraticCurveTo(head.x + 4, head.y - 9, head.x - 3, head.y - 1)
+        .closePath().fill({ color: PAL.hair });
+    } else {
+      drawBeanie(g, head.x, head.y, sm.pom.x, sm.pom.y);
+    }
     // front arm
-    const fu = lerp(-0.25 - swing * 0.8 + brake * 0.5, -2.05, arms);
-    arm(g, shoulder, fu, lerp(0.35 - swing * 0.4, fu * 0.85, arms), PAL.hoodie);
+    arm(g, shoulder, fu, fl, PAL.hoodie);
+  }
+
+  // Loose board, flying beanie and the "…" bubble during a bail.
+  function drawLoose(p, riderY, t) {
+    const f = p.fall;
+    looseBoard.visible = !!(f && f.loose);
+    boardG.visible = !looseBoard.visible;
+    capG.visible = !!(f && f.cap);
+    bubbleG.clear();
+    if (!f) return;
+    if (f.loose) {
+      looseBoard.pivot.set(0, PIVOT_Y);
+      looseBoard.position.set(f.bx, -height(f.bx) - f.by + PIVOT_Y);
+      looseBoard.rotation = -Math.atan2(height(f.bx + 1) - height(f.bx - 1), 2) + f.brot;
+      drawBoard(looseBoard, p.wheelSpin, 0);
+      const sh = 1 / (1 + f.by / 60);
+      for (let i = 0; i < 3; i++) {
+        riderShadow.ellipse(f.bx, -height(f.bx) + 1, (26 + i * 7) * sh, (2 + i) * sh)
+          .fill({ color: PAL.shadow, alpha: PAL.shadowAlpha * 0.35 * sh });
+      }
+    }
+    if (f.cap) {
+      capG.clear();
+      drawBeanie(capG, 0, 1, -6, -19);
+      capG.position.set(f.cap.x, -f.cap.y);
+      capG.rotation = f.cap.rot;
+    }
+    // "…": appears while he lies still, dots typing in one by one
+    const show = f.phase === 'lie' || (f.phase === 'up' && f.t < 0.15);
+    if (show) {
+      const h = bodyToWorld(lastHead.x, lastHead.y, p, riderY);
+      const a = f.phase === 'lie' ? Math.min(1, f.t / 0.15) : 1 - f.t / 0.15;
+      const bx = h.x + 6, by = h.y - 44 + Math.sin(t * 3) * 1.5;
+      bubbleG.roundRect(bx - 17, by - 10, 34, 20, 9).fill({ color: PAL.string, alpha: 0.92 * a });
+      bubbleG.moveTo(bx - 8, by + 9).lineTo(bx - 12, by + 17).lineTo(bx - 2, by + 9).closePath().fill({ color: PAL.string, alpha: 0.92 * a });
+      const n = f.phase === 'lie' ? Math.min(3, 1 + Math.floor(f.t / 0.16)) : 3;
+      for (let i = 0; i < n; i++) bubbleG.circle(bx - 8 + i * 8, by, 2.4).fill({ color: PAL.deck, alpha: a });
+    }
   }
 
   // --- frame -------------------------------------------------------------
@@ -520,10 +706,11 @@ export function createRenderer(app) {
     boardG.rotation = sm.pitch.v;
     drawBoard(boardG, p.wheelSpin, sm.bump.v);
     drawBody(bodyG, p, t, Math.min(dt || 1 / 60, 1 / 30));
+    riderShadow.clear();
+    drawLoose(p, riderY, t);
     riderBlur.strength = c.riderSoftness;
     riderBlur.enabled = c.riderSoftness > 0.01;
 
-    riderShadow.clear();
     // soft contact shadow: stacked ellipses fading out
     // the shadow stays on the ground and fades/shrinks as the rider rises
     const lift = p.airborne ? Math.max(0, p.airY - height(p.x)) : 0;
@@ -544,6 +731,7 @@ export function createRenderer(app) {
   // Landing: knees absorb the impact; sloppy landings wobble; Perfect gets a
   // small camera punch-in.
   function land(impact, quality) {
+    afterLand = 0;
     sm.crouch.vel += Math.min(400, impact * 0.9);
     sm.bump.vel += Math.min(60, impact * 0.08);
     if (quality === 'Sloppy') sm.wobble.vel += 14;
