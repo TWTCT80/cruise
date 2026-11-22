@@ -264,14 +264,37 @@ export function bail(p, missedCatch = false) {
 }
 
 // Tricks -------------------------------------------------------------------
-export const TRICK_DIRS = {            // swipe direction (degrees, 0 = right, 90 = up) → trick
-  kickflip: { dir: 180, tol: 35 },
+// dir: swipe direction in degrees (0 = right, 90 = up), tol: how far off it
+// may be. roll: kickflip-axis turns (+ = kickflip way, − = heelflip way),
+// yaw: shove-it turns (+ = backside, − = frontside). time: × flipTime.
+// tier: catch-window scale (★★ 1, ★★★ 0.8, ★★★★+ 0.6).
+// The 360 flip is a curved swipe: starts down and hooks to the left.
+export const TRICKS = {
+  kickflip: { name: 'Kickflip',        stars: 2, dir: 180, tol: 35, roll: 1,  yaw: 0,    time: 1,    tier: 1 },
+  heelflip: { name: 'Heelflip',        stars: 2, dir: 0,   tol: 35, roll: -1, yaw: 0,    time: 1,    tier: 1 },
+  popShove: { name: 'Pop shove-it',    stars: 2, dir: 270, tol: 35, roll: 0,  yaw: 0.5,  time: 0.85, tier: 1 },
+  fsShove:  { name: 'FS shove-it',     stars: 2, dir: 45,  tol: 35, roll: 0,  yaw: -0.5, time: 0.85, tier: 1 },
+  varial:   { name: 'Varial kickflip', stars: 3, dir: 225, tol: 25, roll: 1,  yaw: 0.5,  time: 1.1,  tier: 0.8 },
+  hardflip: { name: 'Hardflip',        stars: 4, dir: 135, tol: 20, roll: 1,  yaw: -0.5, time: 1.15, tier: 0.6 },
+  flip360:  { name: '360 flip',        stars: 5, arc: true,             roll: 1,  yaw: 1,    time: 1.3,  tier: 0.6 },
 };
+
+// Straight swipe → trick id (nearest direction within its tolerance), or null.
+export function trickForSwipe(angleDeg) {
+  let best = null, bestDiff = 1e9;
+  for (const [id, d] of Object.entries(TRICKS)) {
+    if (d.arc) continue;
+    const diff = Math.abs(((angleDeg - d.dir + 540) % 360) - 180);
+    if (diff <= d.tol && diff < bestDiff) { best = id; bestDiff = diff; }
+  }
+  return best;
+}
 
 // Second motion in the air: a swipe picks the trick and the board starts to turn.
 export function startTrick(p, id) {
   if (!p.airborne || p.trick || p.fall) return false;
-  p.trick = { id, t: 0, dur: config.flipTime, roll: 0, caught: false, released: false, grade: null, delta: 0 };
+  const d = TRICKS[id];
+  p.trick = { id, t: 0, dur: config.flipTime * d.time, roll: 0, yaw: 0, caught: false, released: false, grade: null, delta: 0 };
   p.onTrickStart?.(id);
   return true;
 }
@@ -284,7 +307,7 @@ export function catchTrick(p) {
   const c = config;
   const delta = (tr.t - tr.dur) * 1000;   // ms, negative = early
   tr.delta = delta;
-  const a = Math.abs(delta);
+  const a = Math.abs(delta) / TRICKS[tr.id].tier;   // harder tricks: narrower windows
   if (a <= c.catchPerfect) tr.grade = 'Perfect';
   else if (a <= c.catchClean) tr.grade = 'Clean';
   else if (a <= c.catchSloppy) tr.grade = 'Sloppy';
@@ -296,15 +319,20 @@ export function catchTrick(p) {
 function stepTrick(p, dt) {
   const tr = p.trick;
   tr.t += dt;
+  const d = TRICKS[tr.id];
   if (tr.caught) {
-    // feet stop the board: settle onto the nearest full turn
-    const target = Math.round(tr.roll / (2 * Math.PI)) * 2 * Math.PI;
-    tr.roll += (target - tr.roll) * Math.min(1, dt * 18);
+    // feet stop the board: settle onto the nearest full roll / half yaw turn
+    const tRoll = Math.round(tr.roll / (2 * Math.PI)) * 2 * Math.PI;
+    const tYaw = Math.round(tr.yaw / Math.PI) * Math.PI;
+    tr.roll += (tRoll - tr.roll) * Math.min(1, dt * 18);
+    tr.yaw += (tYaw - tr.yaw) * Math.min(1, dt * 18);
   } else if (!tr.released) {
-    tr.roll = (tr.t / tr.dur) * 2 * Math.PI;   // constant spin so the timing can be learned
+    const u = tr.t / tr.dur;                     // constant spin so the timing can be learned
+    tr.roll = u * 2 * Math.PI * d.roll;
+    tr.yaw = u * 2 * Math.PI * d.yaw;
   } // released but missed: the board stays where it was (lands crooked)
   // still holding way past the window: it's a miss whatever happens next
-  if (!tr.released && (tr.t - tr.dur) * 1000 > config.catchSloppy) p.failReason = 'late';
+  if (!tr.released && (tr.t - tr.dur) * 1000 / d.tier > config.catchSloppy) p.failReason = 'late';
 }
 
 function updateFall(p, dt) {

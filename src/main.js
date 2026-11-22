@@ -1,6 +1,6 @@
 import { Application } from '../vendor/pixi.min.mjs';
 import { config, loadConfig, NS } from './config.js';
-import { createPlayer, update, pressLeft, releaseLeft, pressRight, releaseRight, pop, bail, startTrick, catchTrick, TRICK_DIRS } from './player.js';
+import { createPlayer, update, pressLeft, releaseLeft, pressRight, releaseRight, pop, bail, startTrick, catchTrick, TRICKS as TRICK_DEFS, trickForSwipe } from './player.js';
 import { createRenderer } from './render.js';
 import { unlockAudio, updateAudio, seamClack, kickScuff, footOnDeck, popSound, landSound, fallSound, flickSound, catchSound } from './audio.js';
 import { landingChime } from './music.js';
@@ -20,7 +20,7 @@ document.getElementById('game').appendChild(app.canvas);
 
 const player = createPlayer();
 const renderer = createRenderer(app);
-window.__cruise = { player, config }; // debug/test hook
+window.__cruise = { player, config, startTrick, catchTrick }; // debug/test hook
 
 player.onFootBack = () => footOnDeck();
 player.onKickContact = () => {
@@ -43,7 +43,7 @@ function record(trick, quality) {
 }
 
 // --- trick popup ------------------------------------------------------------
-const TRICKS = { ollie: { name: 'Ollie', stars: 1 }, kickflip: { name: 'Kickflip', stars: 2 } };
+const TRICKS = { ollie: { name: 'Ollie', stars: 1 }, ...TRICK_DEFS };
 const popupEl = document.getElementById('trick');
 let popupTimer = 0;
 function showPopup(trick, quality, isNew) {
@@ -163,17 +163,26 @@ function onDown(e) {
 }
 function onMove(e) {
   if (trickPtr && e.pointerId === trickPtr.id && !trickPtr.started && !trickPtr.dead) {
-    const dx = e.clientX - trickPtr.x, dy = trickPtr.y - e.clientY;
-    if (Math.hypot(dx, dy) >= config.swipeDistance) {
-      const ang = Math.atan2(dy, dx) * 180 / Math.PI;
-      let hit = null;
-      for (const [id, d] of Object.entries(TRICK_DIRS)) {
-        const diff = Math.abs(((ang - d.dir + 540) % 360) - 180);
-        if (diff <= d.tol) hit = id;
-      }
-      // no match (e.g. straight up, or a trick that isn't built yet): ignored
-      if (hit && startTrick(player, hit)) trickPtr.started = true;
-      else trickPtr.dead = true;
+    const t = trickPtr;
+    t.lastMove = performance.now();
+    const dx = e.clientX - t.x, dy = t.y - e.clientY;
+    const dist = Math.hypot(dx, dy);
+    const deg = (x, y) => Math.atan2(y, x) * 180 / Math.PI;
+    if (!t.first && dist >= config.swipeDistance) {
+      t.first = { x: e.clientX, y: e.clientY, at: performance.now() };
+      const hit = trickForSwipe(deg(dx, dy));
+      // a downward start may still hook into a 360 flip: look a little further
+      if (hit === 'popShove') { t.maybeArc = true; return; }
+      if (hit && startTrick(player, hit)) t.started = true;
+      else t.dead = true;            // no match (e.g. straight up): ignored
+    } else if (t.maybeArc && dist >= config.swipeDistance * 2) {
+      // direction of the second half of the stroke: hooked left = 360 flip
+      const a2 = deg(e.clientX - t.first.x, t.first.y - e.clientY);
+      const turned = Math.abs(((a2 - 270 + 540) % 360) - 180);
+      const leftward = e.clientX < t.first.x;
+      t.maybeArc = false;
+      if (startTrick(player, turned >= 50 && leftward ? 'flip360' : 'popShove')) t.started = true;
+      else t.dead = true;
     }
     return;
   }
@@ -199,6 +208,9 @@ function onUp(e) {
   if (leftPointers.delete(e.pointerId) && leftPointers.size === 0) releaseLeft(player);
   if (right && e.pointerId === right.id) { releaseRight(player); right = null; }
   if (trickPtr && e.pointerId === trickPtr.id) {
+    // a short downward flick that ended before it could become an arc = shove-it,
+    // but there is nothing to hold: count it as caught at once (early)
+    if (trickPtr.maybeArc && startTrick(player, 'popShove')) trickPtr.started = true;
     if (trickPtr.started) catchTrick(player);
     trickPtr = null;
   }
@@ -313,6 +325,11 @@ app.ticker.add((ticker) => {
   }
   time += dt;
 
+  // a downward swipe whose finger stopped moving without hooking = plain pop shove-it
+  if (trickPtr && trickPtr.maybeArc && performance.now() - trickPtr.lastMove > 80) {
+    trickPtr.maybeArc = false;
+    if (startTrick(player, 'popShove')) trickPtr.started = true; else trickPtr.dead = true;
+  }
   hints.tick();
   updateAudio(player, dt);
   renderer.render(player, simDt, time);

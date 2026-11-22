@@ -51,12 +51,17 @@ framfoten planar ut → mjuk landning med böjda knän.
 | ↓ | Pop shove-it | ★★ | ±35° |
 | ← | Kickflip | ★★ | ±35° |
 | → | Heelflip | ★★ | ±35° |
-| ↗ (var ↑ – ↑ är nu pop) | FS shove-it | ★★ | ±35° |
+| ↗ | FS shove-it | ★★ | ±35° |
 | ↙ | Varial kickflip | ★★★ | ±25° |
 | ↖ | Hardflip | ★★★★ | ±20° |
-| båge ↓→← (kvartscirkel) | 360 flip | ★★★★★ | rätt krökning |
+| båge: börja ↓, krok åt ← | 360 flip | ★★★★★ | andra halvan vriden ≥ 50° åt vänster |
 
-> Mappningen ses över i M3 – ↑ i luften är nu ledig men kan förväxlas med pop.
+> Beslut M3 (2026-11-22): ↑ i luften gör ingenting (efterdrag från popen blir aldrig ett trick).
+> Överlappande toleranser avgörs av närmaste riktning. Ett ↓ väntar tills fingret dragit 2× `swipeDistance`
+> eller stannat (80 ms) för att se om det blir 360-bågen. Catchen ensam ger betyget; popen ger bara höjd.
+> Rotationstid = `flipTime` × (shove 0,85 · flip 1 · varial 1,1 · hardflip 1,15 · 360 1,3).
+> Brädan ritas i fejkad 3D från sidan: roll = flip (kant → grip → hjul upp → undersida), yaw = shove
+> (brädan kortas av perspektiv). Griptejpen blixtrar i catch-ögonblicket. Kod: `TRICKS` i `player.js`.
 
 ### Catch-fönster (± kring ögonblicket brädan roterat klart)
 
@@ -143,7 +148,7 @@ Varje steg testas på telefonen och godkänns innan nästa.
 
 1. **Rullkänsla** – push, momentum, lutning, kamera, hjulljud. *(godkänd 2026-11-22)*
 2. **Ollie** – huk + snäpp, luft med häng, 6-fasanimation, landning, popup, statistik *(godkänd 2026-11-22: `perfectAngle` 10°, `bailAngle` 40°)*
-3. **Alla 8 trick** – gestigenkänning, popup
+3. **Alla 8 trick** – gestigenkänning, popup *(kickflip godkänd i känsla 2026-11-22; övriga 7 byggda, testas)*
 4. **Världen** – gatubitar, kantstenar, trappor, parallax, dygnsrytm
 5. **Trickboken** – statistik, mastery, tips, sparning, vänsterhänt läge
 6. **Polering + Capacitor** – haptik, iPhone-build, ikon
