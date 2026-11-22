@@ -364,10 +364,10 @@ export function createRenderer(app) {
         for (const key of FP_KEYS) o[key] = lerp(a[key], b[key], e);
         return o;
       }
-      case 'jog': {                               // trots back to the board
-        const hipH = 54 - 2.5 * Math.abs(Math.sin(phi));
-        return { rot: 0.06, hipH, lean: 0.12, ...stride(12, 8, hipH, 3),
-          bu: 0.6 * Math.sin(phi), bl: 0.6 * Math.sin(phi) + 1.2, fu: -0.6 * Math.sin(phi), fl: -0.6 * Math.sin(phi) + 1.2 };
+      case 'jog': {                               // lopes back to the board: long, loose strides
+        const hipH = 51 + 5 * Math.abs(Math.cos(phi));            // bobs: high mid-stride, sinks as a foot lands
+        return { rot: 0.08, hipH, lean: 0.16 + 0.05 * Math.sin(2 * phi), ...stride(20, 12, hipH, 4),
+          bu: 0.85 * Math.sin(phi), bl: 0.85 * Math.sin(phi) + 1.1, fu: -0.85 * Math.sin(phi), fl: -0.85 * Math.sin(phi) + 1.1 };
       }
       case 'mount': {                             // small hop back onto the deck
         const k = ease(u(FALL.mount));

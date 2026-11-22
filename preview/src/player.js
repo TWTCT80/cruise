@@ -275,9 +275,9 @@ function updateFall(p, dt) {
       break;
     case 'jog': {
       const d = f.bx - 4 - p.x;
-      f.rv += (Math.min(230, Math.max(60, d * 3)) - f.rv) * Math.min(1, dt * 5);
+      f.rv += (Math.min(210, Math.max(60, d * 3)) - f.rv) * Math.min(1, dt * 5);
       const before = Math.floor(f.stepPhase);
-      f.stepPhase += dt * 4.8;
+      f.stepPhase += dt * 3.1;                 // long, loping strides
       if (Math.floor(f.stepPhase) !== before) ev('step');
       if (f.cap && f.cap.landed && p.x >= f.cap.x - 8) { f.cap = null; ev('cap'); }
       if (d <= 0) { next('mount'); }
