@@ -156,6 +156,13 @@ landningsfeedback, popup med NEW!, statistik. Toms värden: `popVel` 375, `hangW
 `perfectSnap` 2000. Förgrund = böljande kullar + helt svarta skyltar + buskar (finslipas senare).
 Service worker (network-first) + Uppdatera-knapp löser cache-problemet på telefonen.
 
+**Kväll 2026-11-22 – rörelser från sprite-ark (branch `character-motion`, mergad):** ollie-armarna
+kastas ut brett vid popet och sjunker först efter landning. Mjukt fall byggt: vingla → snubbla av → dyk →
+magglid (mössan flyger av, brädan rullar iväg) → "…" → resa sig → lufsa ikapp (långa steg), plocka upp
+mössan → hoppa på. Utlösare provisorisk: snäpp > `bailAngle` 45°, dev-knappen "Testa fall", F-tangent.
+Broms: håller man kvar fingret (`brakeHold` 0,12 s) innan sparken tar i blir det bara broms, ingen spark.
+Förhandsversioner testas på `/preview/` (kopia av en branch i `preview/` på main, egna inställningar).
+
 **Öppet i M2 att stämma av nästa gång:**
 - `perfectAngle` 12° kan vara för snävt – Toms tumme snäpper naturligt ~17°. Pröva 20°?
 - Kännas landningen, plinget och popupen rätt? Höjd/airtime ok efter nya värden?
@@ -164,5 +171,5 @@ Service worker (network-first) + Uppdatera-knapp löser cache-problemet på tele
 **Nästa: M3 – alla trick.** Andra rörelsen i luften: sätt ner fingret, svep (riktning = trick), håll,
 släpp = catch. Att göra: se över svepmappningen (↑ är nu pop, FS shove-it flyttad till ↗),
 gestigenkänning med vinkeltolerans, brädans rotationer (flip/shove) i animationen, greptejps-blink som
-catch-ledtråd, catch-fönster → Sloppy/Clean/Perfect, mjukt fall (snubbla, jogga ikapp ~1,5 s), diskret
+catch-ledtråd, catch-fönster → Sloppy/Clean/Perfect, koppla det befintliga fallet till missade catcher, diskret
 ikon för varför man föll, större fanfar för svårare trick.

@@ -11,6 +11,7 @@ export const DEFAULTS = {
   pushDuration: 0.51,     // seconds per kick animation
   brakeDecel: 420,        // foot-brake deceleration
   brakeDelay: 0.18,       // hold left this long after a kick → foot brake
+  brakeHold: 0.12,        // finger still down this long before the kick lands → no kick, brake instead
   maxSpeed: 1300,
 
   // --- ollie ---
@@ -106,6 +107,7 @@ export const RANGES = {
   pushDuration: [0.2, 0.8, 0.01],
   brakeDecel: [100, 1200, 10],
   brakeDelay: [0.05, 0.5, 0.01],
+  brakeHold: [0.05, 0.3, 0.01],
   maxSpeed: [500, 2500, 10],
   popDistance: [10, 80, 1],
   popVel: [150, 600, 5],

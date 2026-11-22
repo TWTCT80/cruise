@@ -401,7 +401,8 @@ export function createRenderer(app) {
     g.circle(pomX, pomY, 4.2).fill({ color: PAL.beanie });
   }
 
-  let afterLand = 9;          // seconds since the last landing (arms settle)
+  let afterLand = 9;
+  let kickCancels = 0, backFrom = null, backBlend = 0, lastBack = null;          // seconds since the last landing (arms settle)
   let lastHead = { x: 0, y: 0 };
 
   function drawBody(g, p, t, dt) {
@@ -508,6 +509,17 @@ export function createRenderer(app) {
     } else if (brake > 0.01) {
       back = { x: -17 - 29 * brake, y: (DECK_Y - 3) + (2 - DECK_Y + 3) * brake };
     }
+    // a kick that turned into a brake: glide the foot from where it was
+    if (p.kickCancels !== kickCancels) {
+      kickCancels = p.kickCancels;
+      if (lastBack) { backFrom = { ...lastBack }; backBlend = 1; }
+    }
+    if (backBlend > 0 && !f) {
+      const e = ease(backBlend);
+      back = { x: lerp(back.x, backFrom.x, e), y: lerp(back.y, backFrom.y, e) };
+      backBlend = Math.max(0, backBlend - dt / 0.16);
+    }
+    lastBack = back;
 
     const shoulder = { x: hip.x + Math.sin(lean) * 40 + 3, y: hip.y - Math.cos(lean) * 40 };
 
