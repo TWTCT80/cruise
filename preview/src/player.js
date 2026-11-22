@@ -143,9 +143,11 @@ export function update(p, dt) {
   // Holding after the kick has finished → drag the foot to brake.
   if (p.holdingLeft) {
     p.holdTime += dt;
-    // A press that is still held before the foot reaches the ground was a
-    // brake all along: drop the kick and go straight to braking.
-    if (p.pushing && !p.pushApplied && p.holdTime >= c.brakeHold) {
+    // A press that is still held while the kicking foot is on the ground
+    // (push phase up to 62 %) means "brake": the foot stays down and drags
+    // instead of finishing the kick. Normal dabs are shorter than brakeHold
+    // and kick as usual.
+    if (p.pushing && p.pushT < 0.62 && p.holdTime >= c.brakeHold) {
       p.pushing = false; p.queuedPush = false;
       p.braking = true;
       p.kickCancels++;
