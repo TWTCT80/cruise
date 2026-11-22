@@ -27,6 +27,12 @@ export const DEFAULTS = {
   cleanAngle: 25,          // max degrees off vertical for Clean
   perfectAngle: 10,        // max degrees off vertical for Perfect
   hitstop: 0.06,           // seconds frozen on a Perfect landing
+  // --- tricks (M3): in the air — finger down, swipe, hold, release = catch ---
+  swipeDistance: 28,       // px the finger must travel to pick a trick
+  flipTime: 0.38,          // seconds for a kickflip's full turn (catch moment)
+  catchPerfect: 50,        // ms either side of the full turn
+  catchClean: 100,
+  catchSloppy: 160,        // outside this = bail
   bailAngle: 40,           // PROVISIONAL: snaps more crooked than this bail on landing (90 = never)
 
   // --- terrain ---
@@ -121,6 +127,11 @@ export const RANGES = {
   cleanAngle: [5, 60, 1],
   perfectAngle: [2, 40, 1],
   hitstop: [0, 0.2, 0.005],
+  swipeDistance: [10, 80, 1],
+  flipTime: [0.2, 0.7, 0.01],
+  catchPerfect: [20, 120, 5],
+  catchClean: [40, 200, 5],
+  catchSloppy: [60, 300, 5],
   bailAngle: [20, 90, 1],
   hillAmp: [0, 3, 0.05],
   hillLength: [0.3, 3, 0.05],

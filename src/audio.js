@@ -183,3 +183,18 @@ export function fallSound(kind) {
       break;
   }
 }
+
+// Kickflip flick: the front foot brushes off the side of the nose.
+export function flickSound() {
+  if (!ctx) return;
+  burst({ freq: 1100, q: 1.5, dur: 0.09, gain: 0.035, type: 'bandpass', attack: 0.01 });
+}
+
+// Catch: both feet meet the deck in the air — a small, firm double tap.
+export function catchSound(grade) {
+  if (!ctx) return;
+  const g = grade === 'Perfect' ? 1 : grade === 'Clean' ? 0.8 : 0.6;
+  thump(90, 0.07, 0.06 * g);
+  burst({ freq: 600, dur: 0.04, gain: 0.03 * g, attack: 0.003 });
+  setTimeout(() => thump(84, 0.06, 0.045 * g), 35);
+}

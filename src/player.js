@@ -39,6 +39,8 @@ export function createPlayer() {
     popAngle: 0,
     bailNext: false,   // test hook: the next landing bails
     fall: null,        // bail state (see FALL below) — null while riding
+    trick: null,       // { id, t, dur, caught, released, roll, grade, delta } while flipping
+    failReason: null,  // 'early' | 'late' after a missed catch
   };
 }
 
@@ -106,6 +108,7 @@ export function pop(p, speed, angleDeg) {
   p.airDur = Math.max(0.35, (2 * Math.max(60, p.vy)) / c.airGravity) * 1.08;
   p.popQuality = q;
   p.popAngle = angleDeg;
+  p.trick = null; p.failReason = null;
   p.onPop?.(q, speed, angleDeg);
 }
 
@@ -190,6 +193,8 @@ function updateAir(p, dt) {
   p.accel *= 1 - Math.min(1, dt * 4);
   p.crouchAmt += (0 - p.crouchAmt) * Math.min(1, dt * 12);
 
+  if (p.trick) stepTrick(p, dt);
+
   // board drifts towards the slope it will land on
   const groundTheta = angle(p.x);
   p.boardAngle += (groundTheta - p.boardAngle) * Math.min(1, dt * 4);
@@ -211,13 +216,22 @@ function updateAir(p, dt) {
     p.boardAngle = groundTheta;
     // PROVISIONAL bail rule until M3 brings real fail conditions: a very
     // crooked snap (or the test hook) loses the board on landing
+    const tr = p.trick;
+    p.trick = null;
+    if (tr && !tr.grade) {                       // flipped but never caught it cleanly
+      p.failReason = p.failReason || 'late';
+      p.onBailLand?.(impact, p.failReason, tr.id);
+      bail(p, true);
+      return;
+    }
     if (p.bailNext || p.popAngle > c.bailAngle) {
       p.bailNext = false;
-      p.onBailLand?.(impact);
+      p.onBailLand?.(impact, null, 'ollie');
       bail(p);
       return;
     }
-    p.onLand?.(p.popQuality, impact);
+    if (tr) p.onTrickLand?.(tr.id, tr.grade, impact, tr.delta);
+    else p.onLand?.(p.popQuality, impact);
   }
 }
 
@@ -229,7 +243,7 @@ export const FALL = { wobble: 0.32, run: 0.42, dive: 0.26, slide: 0.38, lie: 0.7
 const BOARD_FRICTION = 700;
 const G = 900;
 
-export function bail(p) {
+export function bail(p, missedCatch = false) {
   if (p.fall || p.airborne) return;
   p.pushing = false; p.queuedPush = false; p.holdingLeft = false;
   p.braking = false; p.brakeAmount = 0; p.crouching = false;
@@ -240,7 +254,57 @@ export function bail(p) {
     loose: false, bx: p.x, bv: 0, by: 0, bvy: 0, brot: 0,
     cap: null, stepPhase: 0,
   };
+  // a missed catch: no wobble — the feet come down without the board
+  if (missedCatch) {
+    const f = p.fall;
+    f.phase = 'run';
+    f.loose = true; f.bv = f.rv + 450; f.bvy = 120;
+  }
   p.onBail?.();
+}
+
+// Tricks -------------------------------------------------------------------
+export const TRICK_DIRS = {            // swipe direction (degrees, 0 = right, 90 = up) → trick
+  kickflip: { dir: 180, tol: 35 },
+};
+
+// Second motion in the air: a swipe picks the trick and the board starts to turn.
+export function startTrick(p, id) {
+  if (!p.airborne || p.trick || p.fall) return false;
+  p.trick = { id, t: 0, dur: config.flipTime, roll: 0, caught: false, released: false, grade: null, delta: 0 };
+  p.onTrickStart?.(id);
+  return true;
+}
+
+// Finger lifted = catch. Graded by how close to the full turn it came.
+export function catchTrick(p) {
+  const tr = p.trick;
+  if (!tr || tr.released) return;
+  tr.released = true;
+  const c = config;
+  const delta = (tr.t - tr.dur) * 1000;   // ms, negative = early
+  tr.delta = delta;
+  const a = Math.abs(delta);
+  if (a <= c.catchPerfect) tr.grade = 'Perfect';
+  else if (a <= c.catchClean) tr.grade = 'Clean';
+  else if (a <= c.catchSloppy) tr.grade = 'Sloppy';
+  else { tr.grade = null; p.failReason = delta < 0 ? 'early' : 'late'; }
+  tr.caught = !!tr.grade;
+  p.onCatch?.(tr.grade, delta);
+}
+
+function stepTrick(p, dt) {
+  const tr = p.trick;
+  tr.t += dt;
+  if (tr.caught) {
+    // feet stop the board: settle onto the nearest full turn
+    const target = Math.round(tr.roll / (2 * Math.PI)) * 2 * Math.PI;
+    tr.roll += (target - tr.roll) * Math.min(1, dt * 18);
+  } else if (!tr.released) {
+    tr.roll = (tr.t / tr.dur) * 2 * Math.PI;   // constant spin so the timing can be learned
+  } // released but missed: the board stays where it was (lands crooked)
+  // still holding way past the window: it's a miss whatever happens next
+  if (!tr.released && (tr.t - tr.dur) * 1000 > config.catchSloppy) p.failReason = 'late';
 }
 
 function updateFall(p, dt) {
